@@ -16,10 +16,9 @@ on:
       - "tests/test_gui*.py"
       - "pyproject.toml"
       - ".github/workflows/gui-browser.yml"
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: gui-browser-${{ github.workflow }}-${{ github.ref }}
@@ -42,6 +41,78 @@ jobs:
           python -m playwright install --with-deps chromium
           fc-match "Arial"
           fc-match "DejaVu Sans"
+      - name: Capture README task graph
+        if: github.ref_name == 'docs/task-graph-readme-20260916'
+        run: |
+          python - <<'PY'
+          import copy
+          import runpy
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          module = runpy.run_path("tests/test_gui_browser.py")
+          snapshot = copy.deepcopy(module["DENSE_WORKFLOW_SNAPSHOT"])
+          packages = [
+              ("WP01", "Define execution contracts", "completed", "completed", [], "codex", False, 2),
+              ("WP02", "Implement scheduler", "completed", "completed", ["WP01"], "codex", True, 2),
+              ("WP03", "Build Work Package graph", "completed", "completed", ["WP01"], "claude", True, 2),
+              ("WP04", "Integrate agent routing", "completed", "completed", ["WP01"], "qwen", True, 2),
+              ("WP05", "Wire execution workflow", "completed", "completed", ["WP02", "WP03", "WP04"], "codex", False, 2),
+              ("WP06", "Run end-to-end validation", "implement", "running", ["WP05"], "codex", False, 1),
+          ]
+          snapshot["project"].update({"id": "execraft", "task_id": "task-graph-demo", "repositories": ["execraft"]})
+          snapshot["packages"] = [
+              {
+                  "id": package_id,
+                  "title": title,
+                  "stage": stage,
+                  "status": status,
+                  "dependencies": dependencies,
+                  "affected_repositories": ["execraft"],
+                  "computed_complexity": 20,
+                  "risk": "low",
+                  "execution_mode": "standard",
+                  "parallel_safe": parallel,
+                  "parent_id": "",
+                  "shard_ids": [],
+                  "agent_id": agent,
+                  "acceptance_criteria": [
+                      {"id": f"{package_id}-a", "verified": True},
+                      {"id": f"{package_id}-b", "verified": accepted >= 2},
+                  ],
+              }
+              for package_id, title, stage, status, dependencies, agent, parallel, accepted in packages
+          ]
+          snapshot["assignments"] = [{
+              "package_id": "WP06",
+              "package_title": "Run end-to-end validation",
+              "stage": "implement",
+              "agent_id": "codex",
+              "parallel": False,
+          }]
+          snapshot["orchestration"].update({"state": "waiting_for_agent", "completed_packages": 5, "total_packages": 6})
+          snapshot["run"].update({"owned_running": True, "external_running": False, "pid": 1234})
+          snapshot["run_control"] = {"can_start": False, "label": "Running", "reason": ""}
+
+          target = Path("docs/assets/task-graph.png")
+          with module["dashboard_fixture_server"](snapshot) as url:
+              with sync_playwright() as runtime:
+                  browser = runtime.chromium.launch()
+                  page = browser.new_page(viewport={"width": 1600, "height": 1000}, device_scale_factor=1)
+                  page.goto(url, wait_until="networkidle")
+                  page.locator("#workflowGraphView").wait_for(state="visible")
+                  page.locator('[data-workflow-viewport-action="fit"]').click()
+                  page.wait_for_timeout(700)
+                  page.screenshot(path=str(target), full_page=False)
+                  browser.close()
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/assets/task-graph.png
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: capture task graph interface"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
       - name: Check browser JavaScript syntax
         run: find src/execraft/assets/gui -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run GUI backend and Chromium journeys
