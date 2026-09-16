@@ -4,7 +4,7 @@
 The Release workflow refuses a tag that does not equal ``v`` plus
 ``project.version`` in ``pyproject.toml`` (see ``.github/workflows/release.yml``),
 so a release is exactly this sequence: run the mandatory preflight, bump the
-version, commit, push ``master``, and push a ``vX.Y.Z`` tag on that commit.
+version, commit, push ``main``, and push a ``vX.Y.Z`` tag on that commit.
 Performing it by hand invites the two failure modes this script prevents:
 releasing from a dirty or unsynced checkout, and pushing a tag the version
 guard will reject (or moving a tag without meaning to).
@@ -31,7 +31,7 @@ from typing import Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
-BRANCH = "master"
+BRANCH = "main"
 _VERSION_RE = re.compile(r"\d+\.\d+\.\d+")
 _VERSION_KEY_RE = re.compile(r'version\s*=\s*"([^"]*)"')
 
