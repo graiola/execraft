@@ -1,5 +1,6 @@
 name: GUI browser
 
+# Chromium regression coverage for the public operator surfaces.
 on:
   pull_request:
     paths:
