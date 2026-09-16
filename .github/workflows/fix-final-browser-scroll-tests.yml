@@ -23,37 +23,17 @@ jobs:
           path = Path("tests/test_gui_browser.py")
           text = path.read_text(encoding="utf-8")
 
-          old = '''        opener = page.locator("#executionHealthDrawerOpen")
-          opener.click()
-          assert page.locator("#executionHealthDrawerClose").evaluate(
-'''
-          new = '''        opener = page.locator("#executionHealthDrawerOpen")
-          # Dispatch directly: locator.click() would scroll the off-screen
-          # opener into view before Execraft receives the event, invalidating
-          # this application's scroll-preservation assertion.
-          opener.evaluate("node => node.click()")
-          assert page.locator("#executionHealthDrawerClose").evaluate(
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f"expected one execution-health click target, found {text.count(old)}")
-          text = text.replace(old, new)
+          old_health = '        opener = page.locator("#executionHealthDrawerOpen")\n        opener.click()\n        assert page.locator("#executionHealthDrawerClose").evaluate('
+          new_health = '        opener = page.locator("#executionHealthDrawerOpen")\n        # Use a DOM click so Playwright does not scroll the off-screen opener\n        # before Execraft receives the event.\n        opener.evaluate("node => node.click()")\n        assert page.locator("#executionHealthDrawerClose").evaluate('
+          if text.count(old_health) != 1:
+              raise SystemExit(f"expected one health target, found {text.count(old_health)}")
+          text = text.replace(old_health, new_health)
 
-          old = '''        page.locator('[data-work-package-action="select"][data-id="F"]').click()
-          page.locator("#workPackageInspector").wait_for(state="visible")
-          assert _workflow_viewport_position(page) == before
-'''
-          new = '''        # Avoid Playwright actionability auto-scroll here: the test is
-          # specifically asserting that Execraft preserves the already-recorded
-          # document and graph viewport when opening the inspector.
-          page.locator('[data-work-package-action="select"][data-id="F"]').evaluate(
-              "node => node.click()"
-          )
-          page.locator("#workPackageInspector").wait_for(state="visible")
-          assert _workflow_viewport_position(page) == before
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f"expected one inspector click target, found {text.count(old)}")
-          text = text.replace(old, new)
+          old_inspector = '        page.locator(\'[data-work-package-action="select"][data-id="F"]\').click()\n        page.locator("#workPackageInspector").wait_for(state="visible")\n        assert _workflow_viewport_position(page) == before'
+          new_inspector = '        # Use a DOM click so Playwright actionability does not alter the\n        # viewport baseline before the application handles selection.\n        page.locator(\'[data-work-package-action="select"][data-id="F"]\').evaluate(\n            "node => node.click()"\n        )\n        page.locator("#workPackageInspector").wait_for(state="visible")\n        assert _workflow_viewport_position(page) == before'
+          if text.count(old_inspector) != 1:
+              raise SystemExit(f"expected one inspector target, found {text.count(old_inspector)}")
+          text = text.replace(old_inspector, new_inspector)
           path.write_text(text, encoding="utf-8")
           PY
       - name: Commit correction and remove helper workflow
