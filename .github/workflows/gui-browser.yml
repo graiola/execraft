@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: gui-browser-${{ github.workflow }}-${{ github.ref }}
@@ -31,57 +31,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Integrate task graph screenshot in README
-        if: github.ref_name == 'docs/task-graph-readme-20260916'
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("README.md")
-          text = path.read_text()
-          old = '''<table>
-            <tr>
-              <td width="50%" valign="top">
-                <strong>Roadmap planning</strong><br><br>
-                <img src="docs/assets/project-roadmap.png" alt="Execraft project Roadmap interface">
-              </td>
-              <td width="50%" valign="top">
-                <strong>Project Execution</strong><br><br>
-                <img src="docs/assets/project-execution.png" alt="Execraft Project Execution interface">
-              </td>
-            </tr>
-          </table>
-          '''
-          new = '''<table>
-            <tr>
-              <td width="50%" valign="top">
-                <strong>Roadmap planning</strong><br><br>
-                <img src="docs/assets/project-roadmap.png" alt="Execraft project Roadmap interface">
-              </td>
-              <td width="50%" valign="top">
-                <strong>Project Execution</strong><br><br>
-                <img src="docs/assets/project-execution.png" alt="Execraft Project Execution interface">
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2" valign="top">
-                <strong>Task execution graph</strong><br><br>
-                <img src="docs/assets/task-graph.png" alt="Execraft Work Package task execution graph">
-              </td>
-            </tr>
-          </table>
-          '''
-          if old not in text:
-              raise SystemExit("README interface table did not match the expected source")
-          path.write_text(text.replace(old, new, 1))
-          PY
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          if ! git diff --cached --quiet; then
-            git commit -m "docs: showcase task graph interface"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
