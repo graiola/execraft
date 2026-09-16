@@ -75,10 +75,9 @@ jobs:
               raise SystemExit("README interface table did not match the expected source")
           path.write_text(text.replace(old, new, 1))
           PY
-          git checkout origin/main -- .github/workflows/gui-browser.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md .github/workflows/gui-browser.yml
+          git add README.md
           if ! git diff --cached --quiet; then
             git commit -m "docs: showcase task graph interface"
             git push origin "HEAD:${GITHUB_REF_NAME}"
