@@ -160,6 +160,7 @@ export class ExecutionHealthView {
     this.summary = summary;
     this.onVisibilityChange = onVisibilityChange;
     this.lastTrigger = null;
+    this.pagePosition = null;
     this.latest = summarizeExecutionHealth({});
     this.overviewKey = "";
     this.#bind();
@@ -182,6 +183,7 @@ export class ExecutionHealthView {
 
   open({ focus = true } = {}) {
     if (this.isOpen()) return;
+    this.pagePosition = { x: window.scrollX, y: window.scrollY };
     this.lastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : this.openButton;
     this.drawer.hidden = false;
     this.drawer.classList.add("open");
@@ -197,10 +199,13 @@ export class ExecutionHealthView {
     this.drawer.hidden = true;
     this.openButton.setAttribute("aria-expanded", "false");
     this.onVisibilityChange(false);
-    if (restoreFocus) {
-      const target = this.lastTrigger?.isConnected ? this.lastTrigger : this.openButton;
-      queueMicrotask(() => target?.focus({ preventScroll: true }));
-    }
+    const pagePosition = this.pagePosition;
+    this.pagePosition = null;
+    const target = this.lastTrigger?.isConnected ? this.lastTrigger : this.openButton;
+    queueMicrotask(() => {
+      if (restoreFocus) target?.focus({ preventScroll: true });
+      if (pagePosition) window.scrollTo({ left: pagePosition.x, top: pagePosition.y, behavior: "auto" });
+    });
   }
 
   #renderOverviewIfChanged() {

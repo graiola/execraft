@@ -198,6 +198,8 @@ export class WorkPackageInspector {
     this.packageId = "";
     this.activeTab = "overview";
     this.scrollByTab = new Map();
+    this.pagePosition = null;
+    this.workflowPosition = null;
 
     this.tablist.addEventListener("click", (event) => {
       const button = event.target.closest("[data-work-package-inspector-tab]");
@@ -222,6 +224,11 @@ export class WorkPackageInspector {
   }
 
   open({ packageId, title = "WorkPackage details", meta = "", tab = "overview" }) {
+    this.pagePosition = { x: window.scrollX, y: window.scrollY };
+    const workflow = document.querySelector("#workflowWrap");
+    this.workflowPosition = workflow
+      ? { left: workflow.scrollLeft, top: workflow.scrollTop }
+      : null;
     const nextPackageId = String(packageId || "");
     const packageChanged = nextPackageId !== this.packageId;
     if (packageChanged) this.scrollByTab.clear();
@@ -232,13 +239,25 @@ export class WorkPackageInspector {
     this.root.setAttribute("aria-hidden", "false");
     this.setTab(tab, { focus: false, restoreScroll: !packageChanged });
     if (packageChanged) this.content.scrollTop = 0;
-    requestAnimationFrame(() => this.title.focus({ preventScroll: true }));
+    requestAnimationFrame(() => {
+      this.title.focus({ preventScroll: true });
+      const workflow = document.querySelector("#workflowWrap");
+      if (workflow && this.workflowPosition) {
+        workflow.scrollTo({ ...this.workflowPosition, behavior: "auto" });
+      }
+      if (this.pagePosition) {
+        window.scrollTo({ ...this.pagePosition, behavior: "auto" });
+      }
+    });
   }
 
   close({ restoreFocus = true } = {}) {
     if (!this.isOpen) return;
     this.#rememberScroll();
-    const pagePosition = { x: window.scrollX, y: window.scrollY };
+    const pagePosition = this.pagePosition || { x: window.scrollX, y: window.scrollY };
+    const workflowPosition = this.workflowPosition;
+    this.pagePosition = null;
+    this.workflowPosition = null;
     this.root.hidden = true;
     this.root.setAttribute("aria-hidden", "true");
     this.onClose({ packageId: this.packageId, tab: this.activeTab });
@@ -246,6 +265,10 @@ export class WorkPackageInspector {
     requestAnimationFrame(() => {
       const target = this.focusReturnTarget();
       target?.focus?.({ preventScroll: true });
+      const workflow = document.querySelector("#workflowWrap");
+      if (workflow && workflowPosition) {
+        workflow.scrollTo({ ...workflowPosition, behavior: "auto" });
+      }
       window.scrollTo({
         left: pagePosition.x,
         top: pagePosition.y,

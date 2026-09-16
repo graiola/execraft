@@ -1520,7 +1520,14 @@ def test_graph_vertical_wheel_scrolls_page_and_shift_wheel_pans_graph(page):
 
         for _ in range(4):
             page.locator('[data-workflow-viewport-action="zoom-in"]').click()
-        page.evaluate("document.querySelector('#workflowWrap').scrollLeft = 40")
+        page.evaluate(
+            """() => {
+              const wrap = document.querySelector('#workflowWrap');
+              const top = wrap.getBoundingClientRect().top + window.scrollY;
+              window.scrollTo(0, Math.max(0, top - 200));
+              wrap.scrollLeft = 40;
+            }"""
+        )
         before_left = page.evaluate("document.querySelector('#workflowWrap').scrollLeft")
         before_page = page.evaluate("window.scrollY")
         point = _workflow_visible_point(page)
@@ -1726,7 +1733,29 @@ def test_project_roadmap_is_interactive_and_promotes_planned_work(page):
         track = page.locator("[data-roadmap-row='task-demo'] .roadmap-row-track")
         box = track.bounding_box()
         assert box is not None
-        page.mouse.click(box["x"] + min(180, box["width"] / 2), box["y"] + box["height"] / 2)
+        placement = page.evaluate(
+            """() => {
+              const row = document.querySelector("[data-roadmap-row='task-demo']");
+              const track = row.querySelector('.roadmap-row-track').getBoundingClientRect();
+              const bars = [...row.querySelectorAll('.roadmap-item-bar')]
+                .map((bar) => bar.getBoundingClientRect())
+                .sort((left, right) => left.x - right.x);
+              let x = null;
+              for (let index = 0; index < bars.length - 1; index += 1) {
+                const gap = bars[index + 1].x - (bars[index].x + bars[index].width);
+                if (gap >= 24) {
+                  x = bars[index].x + bars[index].width + Math.min(gap / 2, 80);
+                  break;
+                }
+              }
+              if (x === null && bars.length && track.right - (bars.at(-1).x + bars.at(-1).width) >= 24) {
+                x = bars.at(-1).x + bars.at(-1).width + 40;
+              }
+              if (x === null) x = track.x + 40;
+              return {x, y: track.y + track.height / 2};
+            }"""
+        )
+        page.mouse.click(placement["x"], placement["y"])
         rename = page.locator(".roadmap-inline-rename")
         rename.wait_for(state="visible")
         rename.fill("Field beta")
