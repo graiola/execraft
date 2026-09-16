@@ -1,0 +1,66 @@
+name: Fix final browser scroll tests
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fix-final-browser-scroll-tests.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Correct Playwright click semantics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/test_gui_browser.py")
+          text = path.read_text(encoding="utf-8")
+
+          old = '''        opener = page.locator("#executionHealthDrawerOpen")
+          opener.click()
+          assert page.locator("#executionHealthDrawerClose").evaluate(
+'''
+          new = '''        opener = page.locator("#executionHealthDrawerOpen")
+          # Dispatch directly: locator.click() would scroll the off-screen
+          # opener into view before Execraft receives the event, invalidating
+          # this application's scroll-preservation assertion.
+          opener.evaluate("node => node.click()")
+          assert page.locator("#executionHealthDrawerClose").evaluate(
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one execution-health click target, found {text.count(old)}")
+          text = text.replace(old, new)
+
+          old = '''        page.locator('[data-work-package-action="select"][data-id="F"]').click()
+          page.locator("#workPackageInspector").wait_for(state="visible")
+          assert _workflow_viewport_position(page) == before
+'''
+          new = '''        # Avoid Playwright actionability auto-scroll here: the test is
+          # specifically asserting that Execraft preserves the already-recorded
+          # document and graph viewport when opening the inspector.
+          page.locator('[data-work-package-action="select"][data-id="F"]').evaluate(
+              "node => node.click()"
+          )
+          page.locator("#workPackageInspector").wait_for(state="visible")
+          assert _workflow_viewport_position(page) == before
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one inspector click target, found {text.count(old)}")
+          text = text.replace(old, new)
+          path.write_text(text, encoding="utf-8")
+          PY
+      - name: Commit correction and remove helper workflow
+        run: |
+          rm .github/workflows/fix-final-browser-scroll-tests.yml
+          git config user.name "Gennaro Raiola"
+          git config user.email "gennaro.raiola@gmail.com"
+          git add tests/test_gui_browser.py .github/workflows/fix-final-browser-scroll-tests.yml
+          git commit -m "Isolate Playwright scroll-preservation checks"
+          git push origin HEAD:main
