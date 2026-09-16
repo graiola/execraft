@@ -1103,7 +1103,9 @@ def test_execution_health_drawer_escape_restores_focus_without_document_scroll(p
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         before = page.evaluate("window.scrollY")
         opener = page.locator("#executionHealthDrawerOpen")
-        opener.click()
+        # Use a DOM click so Playwright does not scroll the off-screen opener
+        # before Execraft receives the event.
+        opener.evaluate("node => node.click()")
         assert page.locator("#executionHealthDrawerClose").evaluate(
             "node => document.activeElement === node"
         ) is True
@@ -1387,7 +1389,11 @@ def test_work_package_inspector_close_preserves_viewport_and_focuses_workbench(p
         _reveal_work_package_card(page, "F")
         before = _workflow_viewport_position(page)
 
-        page.locator('[data-work-package-action="select"][data-id="F"]').click()
+        # Use a DOM click so Playwright actionability does not alter the
+        # viewport baseline before the application handles selection.
+        page.locator('[data-work-package-action="select"][data-id="F"]').evaluate(
+            "node => node.click()"
+        )
         page.locator("#workPackageInspector").wait_for(state="visible")
         assert _workflow_viewport_position(page) == before
         assert page.evaluate("document.activeElement?.id") == "workPackageInspectorTitle"
