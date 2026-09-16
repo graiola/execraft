@@ -1,0 +1,4 @@
+{
+  "ok": true,
+  "final_message": "{\"ok\":true,\"verdict\":\"changes_required\",\"findions\":[\"F-001 | HIGH | Transport validation is missing.\",\"F-002 | HIGH | Route comparison is case-sensitive.\"],\"observations\":[\"The projection path exists.\"],\"summary\":\"Transport requirements remain incomplete.\",\"findings\":[]}"
+}

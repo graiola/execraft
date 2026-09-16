@@ -1,0 +1,46 @@
+schema_version: 1
+require_commands: true
+commands:
+  - id: app-cheap
+    enabled: true
+    profile: cheap
+    repository_id: app
+    command: "python -m compileall -q ."
+    timeout_seconds: 600
+  - id: app-focused
+    enabled: true
+    profile: focused
+    repository_id: app
+    command: "python -m pytest -q"
+    timeout_seconds: 1800
+  - id: core-focused
+    enabled: true
+    profile: focused
+    repository_id: core
+    command: "python -m pytest -q"
+    timeout_seconds: 1800
+  - id: frontend-focused
+    enabled: true
+    profile: focused
+    repository_id: frontend
+    command: "python -m pytest -q"
+    timeout_seconds: 1800
+  - id: worker-a-integration
+    enabled: true
+    profile: integration
+    repository_id: worker_a
+    command: "python -m pytest -q"
+    timeout_seconds: 1800
+  - id: worker-b-integration
+    enabled: true
+    profile: integration
+    repository_id: worker_b
+    command: "python -m pytest -q"
+    timeout_seconds: 1800
+  - id: app-full
+    enabled: true
+    profile: full
+    repository_id: app
+    command: "python -m pytest -q"
+    timeout_seconds: 3600
+known_failures: []

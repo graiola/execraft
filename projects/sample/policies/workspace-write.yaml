@@ -1,0 +1,7 @@
+schema_version: 1
+id: workspace-write
+filesystem: task-worktrees
+network: ask
+docker: deny
+hardware: deny
+destructive_git: deny

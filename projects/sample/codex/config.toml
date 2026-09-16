@@ -1,0 +1,14 @@
+# Repository-scoped Codex configuration.
+# Loaded only after this project has been marked trusted in Codex.
+
+# Safe default. Host integration is an explicit policy-profile opt-in.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"
+
+# Inherit the safe core environment only. Default KEY/SECRET/TOKEN filtering
+# remains enabled; project-required variables must be opted in explicitly rather
+# than copying the complete host environment or secrets into subprocesses.
+[shell_environment_policy]
+inherit = "core"
+ignore_default_excludes = false

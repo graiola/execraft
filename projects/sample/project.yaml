@@ -1,0 +1,77 @@
+# Generic multi-repository example profile used by source-tree smoke tests.
+# Bind it to a checkout with `execraft project bind sample --source /path/to/source`.
+schema_version: 2
+project: sample
+description: "Generic multi-repository example project"
+
+repositories:
+  - id: app
+    path: .
+    role: application
+    required: true
+    base_branch: main
+    workspace_name: app
+  - id: core
+    path: source/core
+    role: core
+    required: false
+    base_branch: main
+    workspace_name: core
+  - id: frontend
+    path: source/frontend
+    role: ui
+    required: false
+    base_branch: main
+    workspace_name: frontend
+  - id: worker_a
+    path: source/worker-a
+    role: component
+    required: false
+    base_branch: main
+    workspace_name: workers/a
+  - id: worker_b
+    path: source/worker-b
+    role: component
+    required: false
+    base_branch: main
+    workspace_name: workers/b
+
+capabilities:
+  - git.worktrees
+  - runtime.compose
+
+task_templates: projects/sample/task_templates
+instructions_dir: projects/sample/instructions
+skills_dir: projects/sample/skills
+opencode_dir: projects/sample/opencode
+claude_dir: projects/sample/claude
+codex_dir: projects/sample/codex
+vscode_dir: projects/sample/vscode
+policies_dir: projects/sample/policies
+verification_file: projects/sample/verification.yaml
+agents_file: projects/sample/agents.yaml
+resources_file: projects/sample/resources.yaml
+
+default_policy: workspace-write
+policy_profiles:
+  read-only:
+    description: Read-only planning, review, and diagnosis.
+  workspace-write:
+    description: Worktree edits and local verification.
+  host-integration:
+    description: Explicit opt-in for privileged host integration.
+
+editor:
+  extensions:
+    - ms-python.python
+  settings:
+    python.analysis.autoImportCompletions: true
+  exclude:
+    - "**/build/**"
+    - "**/dist/**"
+    - "**/.pytest_cache/**"
+  tasks:
+    - label: "Sample tests"
+      type: shell
+      command: "execraft workspace run {{ task_id }} --repository app -- python -m pytest -q"
+      problemMatcher: []

@@ -1,0 +1,7 @@
+schema_version: 1
+id: read-only
+filesystem: read-only
+network: deny
+docker: deny
+hardware: deny
+destructive_git: deny

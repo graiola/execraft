@@ -1,0 +1,121 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "execraft"
+version = "0.1.0"
+description = "A deterministic engineering execution control plane for humans and AI agents"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Gennaro Raiola", email = "gennaro.raiola@gmail.com"},
+]
+maintainers = [
+    {name = "Gennaro Raiola", email = "gennaro.raiola@gmail.com"},
+]
+requires-python = ">=3.10"
+keywords = [
+    "ai",
+    "agents",
+    "engineering-execution",
+    "developer-tools",
+    "orchestration",
+    "software-development",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+]
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "pytest-asyncio", "setuptools>=61", "wheel>=0.41"]
+browser = ["playwright==1.57.0"]
+openclaw = ["cryptography>=43", "websockets>=14,<17"]
+quality = [
+    "build>=1.2",
+    "mypy>=1.11",
+    "ruff>=0.6",
+    "types-PyYAML>=6.0",
+]
+
+
+[project.urls]
+Homepage = "https://github.com/graiola/execraft"
+Repository = "https://github.com/graiola/execraft"
+Documentation = "https://github.com/graiola/execraft/tree/main/docs"
+Issues = "https://github.com/graiola/execraft/issues"
+Changelog = "https://github.com/graiola/execraft/blob/main/CHANGELOG.md"
+
+[project.scripts]
+execraft = "execraft.cli:main"
+execraft-install-agents = "execraft.agents.installer:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+execraft = [
+    "assets/**/*.md",
+    "assets/**/*.json",
+    "assets/**/*.html",
+    "assets/**/*.css",
+    "assets/**/*.js",
+    "assets/**/*.svg",
+    "assets/**/*.png",
+    "assets/**/*.toml",
+    "assets/**/*.yaml",
+    "assets/**/*.yml",
+    "py.typed",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+testpaths = ["tests"]
+# Test isolation and pytest ownership policy: docs/quality-checks.md.
+addopts = "-ra --strict-markers"
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = [
+    ".git",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Start with correctness-critical rules over the complete repository. Broader
+# style rules can be enabled incrementally without weakening this baseline.
+select = ["E4", "E7", "E9", "F63", "F7", "F82"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "src"
+files = [
+    "src/execraft/cli_parsers",
+    "src/execraft/gui/routes",
+    "src/execraft/orchestrate/acceptance.py",
+    "src/execraft/orchestrate/agent_wait.py",
+]
+check_untyped_defs = true
+disallow_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+follow_imports = "skip"
+explicit_package_bases = true
+pretty = true
+show_error_codes = true

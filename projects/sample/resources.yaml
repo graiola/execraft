@@ -1,0 +1,13 @@
+schema_version: 1
+policy:
+  warning_percent: 75
+  cleanup_percent: 82
+  pause_percent: 90
+  resume_percent: 75
+  min_free_gb: 20
+  docker_log_max_size_mb: 50
+  docker_log_max_files: 3
+  buildkit_max_cache_gb: 40
+  buildkit_max_age_hours: 168
+  managed_workspace_retention_days: 14
+  preserve_pinned: true

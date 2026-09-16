@@ -1,0 +1,5 @@
+# Measured context profile for a 16 GiB satellite GPU.
+# The model supports 262K natively; 32K prevents OpenCode review compaction
+# loops while retaining a bounded KV-cache footprint on the example GPU node.
+FROM qwen3-coder:30b
+PARAMETER num_ctx 32768

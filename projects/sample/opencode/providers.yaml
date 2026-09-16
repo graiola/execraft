@@ -1,0 +1,51 @@
+schema_version: 1
+model_sets:
+  qwen-coder-30b-32k:
+    qwen3-coder:30b-32k:
+      name: Qwen3-Coder 30B (32K worker profile)
+      limit:
+        context: 32768
+        output: 4096
+endpoints:
+  gpu-node-a:
+    enabled: true
+    provider_id: ollama-gpu-a
+    provider: ollama
+    api_family: openai-compatible
+    target_id: gpu-node-a
+    target_kind: inference_endpoint
+    concurrency_group: gpu-node-a
+    kind: openai-compatible
+    name: Ollama on example GPU node A
+    base_url: http://192.0.2.10:11434/v1
+    base_url_env: EXECRAFT_OLLAMA_GPU_A_URL
+    connect_timeout_seconds: 5
+    model_set: qwen-coder-30b-32k
+  gpu-node-b:
+    enabled: true
+    provider_id: ollama-gpu-b
+    provider: ollama
+    api_family: openai-compatible
+    target_id: gpu-node-b
+    target_kind: inference_endpoint
+    concurrency_group: gpu-node-b
+    kind: openai-compatible
+    name: Ollama on example GPU node B
+    base_url: http://192.0.2.11:11434/v1
+    base_url_env: EXECRAFT_OLLAMA_GPU_B_URL
+    connect_timeout_seconds: 5
+    model_set: qwen-coder-30b-32k
+  local-ollama:
+    enabled: true
+    provider_id: ollama-local
+    provider: ollama
+    api_family: openai-compatible
+    target_id: local-ollama
+    target_kind: local
+    concurrency_group: local-ollama
+    kind: openai-compatible
+    name: Ollama on local development GPU
+    base_url: http://127.0.0.1:11434/v1
+    base_url_env: EXECRAFT_OLLAMA_LOCAL_URL
+    connect_timeout_seconds: 5
+    model_set: qwen-coder-30b-32k

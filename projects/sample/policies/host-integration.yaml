@@ -1,0 +1,7 @@
+schema_version: 1
+id: host-integration
+filesystem: task-worktrees
+network: allow
+docker: opt-in
+hardware: opt-in
+destructive_git: deny

@@ -1,0 +1,91 @@
+# Schema-v3 agent registry retained as a test fixture.
+#
+# Captured from the Execraft control-plane project before it was removed. It is
+# the v3 half of the round-trip coverage in tests/test_execution_config.py:
+# without it that test would silently become v4-only once every shipped
+# project has migrated, and the v1-v3 compatibility contract would stop
+# being exercised. Do not migrate this file.
+schema_version: 3
+profiles:
+  safe-coding:
+    enabled: true
+    capabilities:
+    - decompose
+    - implement
+    - review
+    - fix_review
+    - supervise
+    capability_weight: 70
+    timeout_seconds: 3600
+    inactivity_timeout_seconds: 900
+    max_internal_retry_delay_seconds: 120
+    auto_approve: false
+    dangerously_skip_permissions: false
+    sandbox_enabled: true
+scheduling:
+  allow_same_provider_review: true
+  decomposition:
+    enabled: true
+    minimum_complexity: 70
+    maximum_shard_complexity: 55
+    max_shards: 4
+  parallel_shards:
+    enabled: true
+    stages:
+    - implement
+    - review
+    - fix_review
+    max_workers: 2
+    require_disjoint_repositories_for_writes: false
+supervisor:
+  enabled: true
+  agents:
+  - codex
+  - claude
+  skill: ai-supervise
+  ask_human_when_uncertain: true
+  require_human_for_destructive_actions: true
+  auto_decision:
+    enabled: true
+    minimum_weight: 80
+    minimum_margin: 25
+    max_per_incident: 1
+commit:
+  mode: automatic
+  require_verification: true
+  allow_verified_noop: true
+providers:
+  codex:
+    extends: safe-coding
+    adapter: codex
+    provider_id: codex
+    priority: 200
+  claude:
+    extends: safe-coding
+    adapter: claude-code
+    provider_id: claude
+    model: claude-sonnet-4-5
+    priority: 150
+  antigravity:
+    extends: safe-coding
+    adapter: antigravity-cli
+    provider_id: antigravity
+    binary: agy
+    priority: 125
+    dangerously_skip_permissions: true
+    sandbox_enabled: false
+    concurrency_group: antigravity
+  opencode:
+    extends: safe-coding
+    adapter: opencode
+    provider_id: opencode
+    model: opencode/big-pickle
+    priority: 100
+  ollama_local_coder:
+    extends: safe-coding
+    adapter: opencode
+    provider_id: opencode-ollama-local-coder
+    model: ollama-local/qwen3-coder:30b-32k
+    priority: 175
+    auto_approve: true
+    concurrency_group: local-ollama

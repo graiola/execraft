@@ -1,0 +1,573 @@
+schema_version: 4
+runtimes:
+  native-codex:
+    kind: native
+    adapter: codex
+    binary: codex
+  native-claude-code:
+    kind: native
+    adapter: claude-code
+    binary: claude
+  native-antigravity-cli:
+    kind: native
+    adapter: antigravity-cli
+    binary: agy
+  native-opencode:
+    kind: native
+    adapter: opencode
+    binary: opencode
+  openclaw-local:
+    kind: openclaw
+    mode: managed
+    gateway: ws://127.0.0.1:18789
+    version_policy: pinned-compatible
+    auth_kind: token
+    auth_ref: env:OPENCLAW_GATEWAY_TOKEN
+execution_targets:
+  gpu-node-a:
+    kind: inference_endpoint
+    endpoint: http://192.0.2.10:11434/v1
+    concurrency_group: gpu-node-a
+  gpu-node-b:
+    kind: inference_endpoint
+    endpoint: http://192.0.2.11:11434/v1
+    concurrency_group: gpu-node-b
+  local-ollama:
+    kind: local
+    endpoint: http://127.0.0.1:11434/v1
+    concurrency_group: local-ollama
+model_routes:
+  model-ollama-gpu-a-qwen3-coder-30b-32k:
+    provider: ollama
+    model: qwen3-coder:30b-32k
+    provider_alias: ollama-gpu-a
+    endpoint: http://192.0.2.10:11434/v1
+    api_family: openai-compatible
+    context_window: 32768
+    default_target: gpu-node-a
+  model-ollama-gpu-b-qwen3-coder-30b-32k:
+    provider: ollama
+    model: qwen3-coder:30b-32k
+    provider_alias: ollama-gpu-b
+    endpoint: http://192.0.2.11:11434/v1
+    api_family: openai-compatible
+    context_window: 32768
+    default_target: gpu-node-b
+  model-ollama-local-qwen3-coder-30b-32k:
+    provider: ollama
+    model: qwen3-coder:30b-32k
+    provider_alias: ollama-local
+    endpoint: http://127.0.0.1:11434/v1
+    api_family: openai-compatible
+    context_window: 32768
+    default_target: local-ollama
+  model-opencode-big-pickle:
+    provider: opencode
+    model: big-pickle
+  model-opencode-go-glm-5-2:
+    provider: opencode-go
+    model: glm-5.2
+agents:
+  codex:
+    runtime: native-codex
+    enabled: true
+    capabilities:
+    - decompose
+    - fix_review
+    - implement
+    - review
+    - supervise
+    priority: 400
+    capability_weight: 100
+    max_complexity: 100
+    concurrency_group: codex
+    policy:
+      timeout_seconds: 3600
+      inactivity_timeout_seconds: 900
+      output_silence_timeout_seconds: 0
+      first_output_timeout_seconds: 0
+      max_output_bytes: 67108864
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: false
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: false
+      sandbox_enabled: false
+    capability_weights:
+      decompose: 100
+      supervise: 100
+    max_complexity_by_capability:
+      decompose: 100
+      supervise: 100
+  claude-code:
+    runtime: native-claude-code
+    enabled: true
+    capabilities:
+    - decompose
+    - fix_review
+    - implement
+    - review
+    - supervise
+    priority: 300
+    capability_weight: 95
+    max_complexity: 100
+    concurrency_group: claude-code
+    policy:
+      timeout_seconds: 3600
+      inactivity_timeout_seconds: 900
+      output_silence_timeout_seconds: 0
+      first_output_timeout_seconds: 0
+      max_output_bytes: 67108864
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: false
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: false
+      sandbox_enabled: false
+    name: claude
+    capability_weights:
+      decompose: 95
+      supervise: 95
+    max_complexity_by_capability:
+      decompose: 100
+      supervise: 100
+  antigravity:
+    runtime: native-antigravity-cli
+    enabled: true
+    capabilities:
+    - decompose
+    - fix_review
+    - implement
+    - review
+    - supervise
+    priority: 250
+    capability_weight: 90
+    max_complexity: 100
+    concurrency_group: antigravity
+    policy:
+      timeout_seconds: 3600
+      inactivity_timeout_seconds: 900
+      output_silence_timeout_seconds: 0
+      first_output_timeout_seconds: 0
+      max_output_bytes: 67108864
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: false
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: true
+      sandbox_enabled: false
+    capability_weights:
+      decompose: 90
+      supervise: 90
+    max_complexity_by_capability:
+      decompose: 95
+      supervise: 95
+  opencode-ollama-gpu-a-coder:
+    runtime: native-opencode
+    enabled: true
+    capabilities:
+    - decompose
+    - fix_review
+    - implement
+    - review
+    priority: 175
+    capability_weight: 60
+    max_complexity: 100
+    concurrency_group: gpu-node-a
+    policy:
+      timeout_seconds: 7200
+      inactivity_timeout_seconds: 1200
+      output_silence_timeout_seconds: 1200
+      first_output_timeout_seconds: 180
+      max_output_bytes: 33554432
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: true
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: false
+      sandbox_enabled: false
+      agent_by_capability:
+        decompose: ai-architect
+        review: ai-reviewer
+        fix_review: ai-fixer
+      format_repair_agent: ai-contract
+    name: ollama_gpu_a_coder
+    model_route: model-ollama-gpu-a-qwen3-coder-30b-32k
+    capability_weights:
+      implement: 60
+      review: 65
+      fix_review: 55
+      decompose: 70
+    max_complexity_by_capability:
+      implement: 50
+      review: 75
+      fix_review: 55
+      decompose: 80
+    target: gpu-node-a
+  opencode-ollama-gpu-b-coder:
+    runtime: native-opencode
+    enabled: true
+    capabilities:
+    - decompose
+    - fix_review
+    - implement
+    - review
+    priority: 175
+    capability_weight: 60
+    max_complexity: 100
+    concurrency_group: gpu-node-b
+    policy:
+      timeout_seconds: 7200
+      inactivity_timeout_seconds: 1200
+      output_silence_timeout_seconds: 1200
+      first_output_timeout_seconds: 180
+      max_output_bytes: 33554432
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: true
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: false
+      sandbox_enabled: false
+      agent_by_capability:
+        decompose: ai-architect
+        review: ai-reviewer
+        fix_review: ai-fixer
+      format_repair_agent: ai-contract
+    name: ollama_gpu_b_coder
+    model_route: model-ollama-gpu-b-qwen3-coder-30b-32k
+    capability_weights:
+      implement: 60
+      review: 65
+      fix_review: 55
+      decompose: 70
+    max_complexity_by_capability:
+      implement: 50
+      review: 75
+      fix_review: 55
+      decompose: 80
+    target: gpu-node-b
+  opencode-ollama-local-coder:
+    runtime: native-opencode
+    enabled: true
+    capabilities:
+    - decompose
+    - fix_review
+    - implement
+    - review
+    priority: 175
+    capability_weight: 60
+    max_complexity: 100
+    concurrency_group: local-ollama
+    policy:
+      timeout_seconds: 7200
+      inactivity_timeout_seconds: 1200
+      output_silence_timeout_seconds: 1200
+      first_output_timeout_seconds: 180
+      max_output_bytes: 33554432
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: true
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: false
+      sandbox_enabled: false
+      agent_by_capability:
+        decompose: ai-architect
+        review: ai-reviewer
+        fix_review: ai-fixer
+      format_repair_agent: ai-contract
+    name: ollama_local_coder
+    model_route: model-ollama-local-qwen3-coder-30b-32k
+    capability_weights:
+      implement: 60
+      review: 65
+      fix_review: 55
+      decompose: 70
+    max_complexity_by_capability:
+      implement: 50
+      review: 75
+      fix_review: 55
+      decompose: 80
+    target: local-ollama
+  opencode-zen-free:
+    runtime: native-opencode
+    enabled: true
+    capabilities:
+    - decompose
+    - review
+    priority: 160
+    capability_weight: 65
+    max_complexity: 65
+    concurrency_group: opencode-zen-free
+    policy:
+      timeout_seconds: 1800
+      inactivity_timeout_seconds: 300
+      output_silence_timeout_seconds: 300
+      first_output_timeout_seconds: 120
+      max_output_bytes: 16777216
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: false
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: false
+      sandbox_enabled: false
+      agent_by_capability:
+        decompose: ai-architect
+        review: ai-reviewer
+      format_repair_agent: ai-contract
+    name: opencode_zen_free
+    model_route: model-opencode-big-pickle
+    aliases:
+    - opencode
+    capability_weights:
+      decompose: 70
+      review: 70
+    max_complexity_by_capability:
+      decompose: 70
+      review: 65
+  opencode-go:
+    runtime: native-opencode
+    enabled: true
+    capabilities:
+    - decompose
+    - fix_review
+    - implement
+    - review
+    priority: 100
+    capability_weight: 75
+    max_complexity: 100
+    concurrency_group: opencode-go
+    policy:
+      timeout_seconds: 3600
+      inactivity_timeout_seconds: 900
+      output_silence_timeout_seconds: 300
+      first_output_timeout_seconds: 120
+      max_output_bytes: 33554432
+      max_internal_retry_delay_seconds: 120
+      live_sessions: true
+      auto_approve: true
+      sandbox: workspace-write
+      permission_mode: acceptEdits
+      dangerously_skip_permissions: false
+      sandbox_enabled: false
+      agent_by_capability:
+        decompose: ai-architect
+        review: ai-reviewer
+        fix_review: ai-fixer
+      format_repair_agent: ai-contract
+    name: opencode_go
+    model_route: model-opencode-go-glm-5-2
+    capability_weights:
+      decompose: 75
+    max_complexity_by_capability:
+      implement: 70
+      review: 100
+      fix_review: 70
+      decompose: 75
+  openclaw-local-coder:
+    runtime: openclaw-local
+    enabled: true
+    capabilities:
+    - implement
+    priority: 45
+    capability_weight: 50
+    max_complexity: 40
+    model_route: model-ollama-local-qwen3-coder-30b-32k
+    target: local-ollama
+    policy:
+      timeout_seconds: 7200
+      inactivity_timeout_seconds: 1200
+      sandbox: workspace-write
+      sandbox_enabled: true
+    capability_weights:
+      implement: 55
+    max_complexity_by_capability:
+      implement: 40
+  openclaw-gpu-a-coder:
+    runtime: openclaw-local
+    enabled: true
+    capabilities:
+    - implement
+    priority: 45
+    capability_weight: 55
+    max_complexity: 45
+    model_route: model-ollama-gpu-a-qwen3-coder-30b-32k
+    target: gpu-node-a
+    policy:
+      timeout_seconds: 7200
+      inactivity_timeout_seconds: 1200
+      sandbox: workspace-write
+      sandbox_enabled: true
+    capability_weights:
+      implement: 60
+    max_complexity_by_capability:
+      implement: 45
+  openclaw-gpu-b-coder:
+    runtime: openclaw-local
+    enabled: true
+    capabilities:
+    - implement
+    priority: 45
+    capability_weight: 55
+    max_complexity: 45
+    model_route: model-ollama-gpu-b-qwen3-coder-30b-32k
+    target: gpu-node-b
+    policy:
+      timeout_seconds: 7200
+      inactivity_timeout_seconds: 1200
+      sandbox: workspace-write
+      sandbox_enabled: true
+    capability_weights:
+      implement: 60
+    max_complexity_by_capability:
+      implement: 45
+  openclaw-local-review:
+    runtime: openclaw-local
+    enabled: true
+    capabilities:
+    - review
+    - fix_review
+    priority: 50
+    max_complexity: 40
+    concurrency_group: openclaw-local
+    model_route: model-ollama-local-qwen3-coder-30b-32k
+    max_complexity_by_capability:
+      fix_review: 55
+  openclaw-gpu-a-review:
+    runtime: openclaw-local
+    enabled: true
+    capabilities:
+    - review
+    - fix_review
+    priority: 50
+    max_complexity: 40
+    model_route: model-ollama-gpu-a-qwen3-coder-30b-32k
+    target: gpu-node-a
+    max_complexity_by_capability:
+      fix_review: 55
+  openclaw-gpu-b-review:
+    runtime: openclaw-local
+    enabled: true
+    capabilities:
+    - review
+    - fix_review
+    priority: 50
+    max_complexity: 40
+    model_route: model-ollama-gpu-b-qwen3-coder-30b-32k
+    target: gpu-node-b
+    max_complexity_by_capability:
+      fix_review: 55
+scheduling:
+  automatic_recovery: true
+  rotate_agents: true
+  minimum_read_only_enforcement: provider_policy
+  allow_cross_package_progress: true
+  agent_wait_poll_max_seconds: 300
+  agent_known_deadline_poll_max_seconds: 1800
+  blocking_agent_wait_max_seconds: 1800
+  prefer_capable_agents: true
+  complexity_medium_threshold: 45
+  complexity_high_threshold: 70
+  capability_weight_band: 15
+  decomposition:
+    enabled: true
+    complexity_threshold: 60
+    target_shard_complexity: 40
+    maximum_shard_complexity: 55
+    maximum_shards: 8
+    trigger_when_no_eligible_provider: true
+  parallel_shards:
+    enabled: true
+    max_workers: 3
+    stages:
+    - implement
+    - review
+    - fix_review
+    require_disjoint_repositories_for_writes: true
+  recovery_playbooks:
+    enabled: true
+    review_exhausted:
+      enabled: true
+      max_rescue_cycles: 2
+      max_findings: 32
+      prefer_non_supervisor_fixer: true
+      allow_supervisor_fallback: false
+  interactive_console:
+    enabled: true
+    max_input_event_bytes: 8192
+    max_pending_input_bytes: 65536
+    default_rows: 40
+    default_columns: 120
+  scope_recovery:
+    max_resume_attempts: 2
+    prefer_reviewer: true
+    allow_implementer_fallback: true
+    allow_cross_repository: true
+    cleanup_untracked_artifacts: true
+    cleanup_patterns:
+    - __pycache__/**
+    - '**/__pycache__/**'
+    - '*.pyc'
+    - '**/*.pyc'
+    - '*.pyo'
+    - '**/*.pyo'
+    - .pytest_cache/**
+    - '**/.pytest_cache/**'
+    - .mypy_cache/**
+    - '**/.mypy_cache/**'
+    - .ruff_cache/**
+    - '**/.ruff_cache/**'
+    max_files: 64
+    max_repositories: 8
+    max_changed_lines: 10000
+    max_excerpt_bytes: 120000
+  scope_policy:
+    enabled: true
+    max_files: 8
+    max_changed_lines: 800
+    allow_tests: true
+    allow_verification_docs: true
+    allow_package_metadata: true
+    allow_adjacent_source: true
+    deny_patterns:
+    - .github/**
+    - '**/.github/**'
+    - PLAN.md
+    - BRIEF.md
+    - TASK.yaml
+    - '**/PLAN.md'
+    - '**/BRIEF.md'
+    - '**/TASK.yaml'
+    - pyproject.toml
+    - '**/pyproject.toml'
+    - package-lock.json
+    - '**/package-lock.json'
+    - Cargo.lock
+    - '**/Cargo.lock'
+    - '**/security/**'
+supervisor:
+  enabled: true
+  agents:
+  - codex
+  - claude-code
+  skill: ai-supervise
+  max_attempts_per_incident: 3
+  max_agent_delegations: 6
+  max_delegation_rounds: 2
+  max_runtime_minutes: 60
+  ask_human_when_uncertain: false
+  require_human_for_destructive_actions: false
+  auto_decision:
+    enabled: true
+    minimum_weight: 45
+    minimum_margin: 5
+    max_per_incident: 2
+commit:
+  mode: automatic
+  allow_verified_noop: true

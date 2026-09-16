@@ -1,0 +1,48 @@
+name: GUI browser
+
+on:
+  pull_request:
+    paths:
+      - "src/execraft/assets/gui/**"
+      - "src/execraft/gui/**"
+      - "tests/test_gui*.py"
+      - "pyproject.toml"
+      - ".github/workflows/gui-browser.yml"
+  push:
+    paths:
+      - "src/execraft/assets/gui/**"
+      - "src/execraft/gui/**"
+      - "tests/test_gui*.py"
+      - "pyproject.toml"
+      - ".github/workflows/gui-browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and browser dependency
+        run: python -m pip install -e '.[test,browser]'
+      - name: Install pinned Playwright Chromium and browser fonts
+        run: |
+          python -m playwright install --with-deps chromium
+          fc-match "Arial"
+          fc-match "DejaVu Sans"
+      - name: Check browser JavaScript syntax
+        run: find src/execraft/assets/gui -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Run GUI backend and Chromium journeys
+        run: >-
+          python -m pytest -q
+          tests/test_gui.py
+          tests/test_gui_onboarding.py
+          tests/test_gui_browser.py
+          tests/test_gui_project_surfaces_browser.py

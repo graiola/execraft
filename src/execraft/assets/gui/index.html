@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="execraft-token" content="__EXECRAFT_TOKEN__">
+  <title>Execraft Control Center</title>
+  <link rel="icon" type="image/png" href="/assets/execraft-mark.png">
+  <link rel="stylesheet" href="/assets/gui.css">
+</head>
+<body>
+<a class="skip-link" href="#mainContent">Skip to dashboard content</a>
+<header class="topbar">
+  <div class="brand">
+    <img class="product-mark" src="/assets/execraft-mark.png" alt="">
+    <div class="product-identity"><h1>Execraft</h1></div>
+  </div>
+  <div class="actions">
+    <button id="commandPaletteBtn" class="btn" aria-haspopup="dialog" title="Quick actions (Ctrl/⌘+K)">Commands</button>
+    <button id="refreshBtn" class="btn">Refresh</button>
+  </div>
+</header>
+<section id="contextNavigator" class="context-navigator" aria-label="Project and task navigation">
+  <nav class="context-path" aria-label="Current location">
+    <button id="projectsBreadcrumbBtn" class="context-crumb" type="button">Projects</button>
+    <span id="projectContextSeparator" class="context-separator hidden" aria-hidden="true">/</span>
+    <select id="projectPicker" class="context-picker hidden" aria-label="Project"><option value="">Select a project…</option></select>
+    <span id="taskContextSeparator" class="context-separator hidden" aria-hidden="true">/</span>
+    <select id="taskPicker" class="context-picker task-picker hidden" aria-label="Task or project roadmap" disabled><option value="">Project roadmap</option></select>
+  </nav>
+</section>
+<main id="homeContent" class="home-content hidden" aria-labelledby="homeTitle">
+  <section id="projectCatalogView" class="home-context-view">
+    <section class="home-hero">
+      <div><span class="eyebrow">Control plane</span><h2 id="homeTitle">Projects</h2><p>Select a project to open its roadmap. Task execution, project settings, and archival tools remain available from the project workspace.</p></div>
+      <div class="home-hero-actions"><button id="refreshHomeBtn" class="btn">Refresh catalog</button></div>
+    </section>
+
+    <section class="panel projects-panel">
+      <div class="panel-header"><div><h2>Registered projects</h2><div id="projectCatalogSummary" class="sub">Loading catalog…</div></div></div>
+      <div id="projectGrid" class="project-grid"></div>
+    </section>
+
+    <details id="addProjectPanel" class="panel onboarding-disclosure">
+      <summary><span><strong>Add project</strong><small>Start from source code, a portable descriptor, or a new repository.</small></span><span class="disclosure-action">Open</span></summary>
+      <section class="onboarding-flow" aria-label="Project onboarding">
+        <div class="onboarding-mode-picker" role="tablist" aria-label="Project starting point">
+          <button id="existingSourceMode" class="onboarding-mode active" type="button" role="tab" aria-selected="true" data-onboarding-mode="source"><strong>Existing source</strong><small>Inspect a checkout and register it</small></button>
+          <button id="descriptorMode" class="onboarding-mode" type="button" role="tab" aria-selected="false" data-onboarding-mode="descriptor"><strong>Project descriptor</strong><small>Register an existing project.yaml</small></button>
+          <button id="greenfieldMode" class="onboarding-mode" type="button" role="tab" aria-selected="false" data-onboarding-mode="greenfield"><strong>New project</strong><small>Create a repository from a template</small></button>
+        </div>
+
+        <section id="existingSourceOnboarding" class="onboarding-step" data-onboarding-panel="source">
+          <header><span class="eyebrow">Existing source</span><h3>Where is the source code?</h3><p>Inspection reads Git metadata and project files without executing repository code.</p></header>
+          <label for="sourceRootInput">Source folder</label>
+          <div class="inline-form onboarding-primary-input"><input id="sourceRootInput" type="text" autocomplete="off" placeholder="/path/to/source"><button id="inspectSourceBtn" class="btn primary">Inspect project</button></div>
+          <details class="onboarding-advanced">
+            <summary>Advanced options</summary>
+            <div class="form-grid two">
+              <label>Profile<select id="existingProjectProfile"></select></label>
+              <label>Extra features<input id="existingProjectFeatures" type="text" placeholder="ros2, docker"></label>
+            </div>
+            <label class="check-row"><input id="existingProjectDevcontainer" type="checkbox"> Add optional workspace dev-container</label>
+            <label class="check-row"><input id="acceptDiscoveryDecisions" type="checkbox"> Accept discovery decisions when creating</label>
+          </details>
+          <div id="sourceInspection" class="inspection-result empty">Inspect the folder to see repositories, detected languages, findings, and generated control-plane files.</div>
+          <div class="card-actions"><button id="createProjectBtn" class="btn primary" disabled>Create project</button></div>
+        </section>
+
+        <section id="descriptorOnboarding" class="onboarding-step hidden" data-onboarding-panel="descriptor">
+          <header><span class="eyebrow">Portable descriptor</span><h3>Register an existing project.yaml</h3><p>The descriptor stays in place; Execraft records only its control-plane route.</p></header>
+          <label for="descriptorInput">Descriptor path</label>
+          <input id="descriptorInput" type="text" autocomplete="off" placeholder="/path/to/project.yaml">
+          <details class="onboarding-advanced">
+            <summary>Advanced options</summary>
+            <label for="descriptorSourceInput">Local source binding</label>
+            <input id="descriptorSourceInput" type="text" autocomplete="off" placeholder="/path/to/checkouts">
+          </details>
+          <div class="card-actions"><button id="registerDescriptorBtn" class="btn primary">Register project</button></div>
+        </section>
+
+        <section id="greenfieldOnboarding" class="onboarding-step hidden" data-onboarding-panel="greenfield">
+          <header><span class="eyebrow">New project</span><h3>Create a repository</h3><p>Choose a name and location. Sensible template and planning defaults are selected automatically.</p></header>
+          <div class="form-grid two onboarding-primary-fields">
+            <label>Project name<input id="greenfieldName" type="text" autocomplete="off" placeholder="telemetry-service"></label>
+            <label>Parent folder<input id="greenfieldParent" type="text" autocomplete="off" placeholder="/path/to/projects"></label>
+          </div>
+          <label for="greenfieldDescription">Optional first task</label>
+          <textarea id="greenfieldDescription" rows="3" placeholder="Expose readiness and metrics endpoints"></textarea>
+          <details class="onboarding-advanced">
+            <summary>Advanced options</summary>
+            <div class="form-grid two">
+              <label>Source template<select id="greenfieldTemplate"></select></label>
+              <label>Project profile<select id="greenfieldProfile"></select></label>
+              <label>Extra features<input id="greenfieldFeatures" type="text" placeholder="docker, rust"></label>
+              <label>First-task planner<select id="greenfieldPlanner"><option value="auto">Auto</option><option value="local">Local</option><option value="agent">Agent required</option></select></label>
+            </div>
+            <label class="check-row"><input id="greenfieldDevcontainer" type="checkbox"> Add optional workspace dev-container</label>
+            <button id="previewGreenfieldBtn" class="btn small" type="button">Preview changes</button>
+          </details>
+          <div id="greenfieldPreview" class="inspection-result empty hidden">Preview the exact source and descriptor effects before creation.</div>
+          <div class="card-actions"><button id="createGreenfieldBtn" class="btn primary">Create project</button></div>
+        </section>
+      </section>
+    </details>
+
+    <section id="sessionsPanel" class="panel sessions-panel">
+      <div class="panel-header"><div><h2>Interrupted starts</h2><div class="sub">Review or resume incomplete project and task workflows.</div></div></div>
+      <div id="onboardingSessions" class="session-list"></div>
+    </section>
+  </section>
+
+  <section id="projectWorkspaceView" class="project-context-view hidden" aria-labelledby="projectWorkbenchTitle">
+    <header class="project-workspace-hero">
+      <div>
+        <button id="closeProjectWorkbench" class="back-link" type="button">← All projects</button>
+        <span class="eyebrow">Project workspace</span>
+        <h2 id="projectWorkbenchTitle">Project details</h2>
+        <p id="projectWorkbenchSubtitle"></p>
+      </div>
+      <dl id="projectWorkspaceFacts" class="project-workspace-facts"></dl>
+    </header>
+    <div class="project-workspace-layout">
+      <aside class="project-workspace-sidebar" aria-label="Project workspace navigation">
+        <nav class="project-tabs" role="tablist" aria-label="Project management views">
+          <button id="projectRoadmapTab" class="project-tab active" data-project-view="roadmap"><span>Roadmap</span><strong id="projectRoadmapsCount">0</strong></button>
+          <button id="projectExecutionTab" class="project-tab" data-project-view="execution"><span>Execution</span><strong id="projectExecutionAttentionCount">0</strong></button>
+          <button id="projectTasksTab" class="project-tab" data-project-view="tasks"><span>Tasks</span><strong id="projectTasksCount">0</strong></button>
+          <button id="projectSettingsTab" class="project-tab" data-project-view="settings"><span>Settings</span></button>
+          <button id="projectArchiveTab" class="project-tab" data-project-view="archive"><span>Archive</span></button>
+        </nav>
+        <section class="project-task-navigator-section">
+          <div class="sidebar-heading"><span>Recent tasks</span><button id="newTaskShortcut" type="button">New</button></div>
+          <div id="projectTaskNavigator" class="project-task-navigator"></div>
+        </section>
+      </aside>
+      <section id="projectWorkbench" class="panel project-workbench">
+        <div id="projectRoadmapView" class="project-detail-view roadmap-view">
+          <header class="roadmap-header">
+            <div>
+              <span class="eyebrow">Project planning</span>
+              <h3 id="roadmapTitle">Roadmap</h3>
+              <p id="roadmapSubtitle">Plan project-level work without changing task execution semantics.</p>
+            </div>
+            <div id="roadmapStats" class="roadmap-stats"></div>
+          </header>
+          <div class="roadmap-controls">
+            <div class="roadmap-selector-group">
+              <select id="roadmapSelect" aria-label="Roadmap"></select>
+              <button id="newRoadmapBtn" type="button" class="btn small primary">New roadmap</button>
+              <button id="roadmapEditBtn" type="button" class="btn small" disabled>Edit</button>
+              <button id="roadmapDeleteBtn" type="button" class="btn small danger" disabled>Delete</button>
+              <button id="roadmapRefreshBtn" type="button" class="btn small">Refresh</button>
+            </div>
+            <div class="roadmap-toolbar">
+              <div class="roadmap-zoom" role="group" aria-label="Roadmap zoom">
+                <button type="button" data-roadmap-zoom="month" aria-pressed="false">Month</button>
+                <button type="button" data-roadmap-zoom="quarter" class="active" aria-pressed="true">Quarter</button>
+                <button type="button" data-roadmap-zoom="year" aria-pressed="false">Year</button>
+              </div>
+              <button id="roadmapFitBtn" type="button" class="btn small" aria-pressed="true">Fit plan</button>
+              <button id="roadmapTodayBtn" type="button" class="btn small">Today</button>
+              <button id="roadmapSelectedBtn" type="button" class="btn small" disabled>Selected</button>
+              <label class="roadmap-group-control">Group<select id="roadmapGroupBy" aria-label="Group Roadmap rows"><option value="lane">Lane</option><option value="phase">Phase</option></select></label>
+              <select id="roadmapExportFormat" class="roadmap-export-format" aria-label="Roadmap export format"><option value="svg">SVG</option><option value="pdf">PDF</option></select>
+              <button id="roadmapExportBtn" type="button" class="btn small" disabled>Export</button>
+              <button id="roadmapPaletteBtn" type="button" class="btn small primary" disabled aria-expanded="false" aria-controls="roadmapBlockPalette">＋ Block</button>
+            </div>
+          </div>
+          <div id="roadmapLoading" class="roadmap-loading hidden" role="status" aria-live="polite" aria-atomic="true">Loading roadmap…</div>
+          <div id="roadmapInlineState" class="roadmap-inline-state hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+          <div id="roadmapEmptyState" class="roadmap-empty-state" role="status" aria-live="polite" aria-atomic="true">Open Roadmap to load project planning.</div>
+          <div id="roadmapWorkspace" class="roadmap-planning-layout hidden">
+            <section class="roadmap-timeline-panel" aria-label="Interactive roadmap timeline">
+              <div id="roadmapBlockPalette" class="roadmap-block-palette hidden" role="menu" aria-label="Add roadmap block">
+                <button type="button" data-roadmap-create-kind="planned_task" role="menuitem" title="Add planned task" aria-label="Add planned task"><span class="roadmap-palette-icon task">▭</span><small>Task</small></button>
+                <button type="button" data-roadmap-create-kind="gate" role="menuitem" title="Add gate" aria-label="Add gate"><span class="roadmap-palette-icon gate">⬢</span><small>Gate</small></button>
+                <button type="button" data-roadmap-create-kind="milestone" role="menuitem" title="Add milestone" aria-label="Add milestone"><span class="roadmap-palette-icon milestone">◆</span><small>Milestone</small></button>
+                <button type="button" data-roadmap-create-kind="phase" role="menuitem" title="Add phase" aria-label="Add phase"><span class="roadmap-palette-icon phase">▰</span><small>Phase</small></button>
+                <button type="button" id="roadmapPaletteTasks" role="menuitem" title="Show existing task blocks" aria-label="Show existing task blocks"><span class="roadmap-palette-icon existing">▣</span><small>Existing</small></button>
+              </div>
+              <div id="roadmapPlacementHint" class="roadmap-placement-hint hidden" role="status"></div>
+              <div id="roadmapTimelineScroll" class="roadmap-timeline-scroll" tabindex="0" role="region" aria-label="Interactive Roadmap timeline" aria-describedby="roadmapTimelineHint" aria-busy="false">
+                <div id="roadmapTimelineCanvas" class="roadmap-timeline-canvas"></div>
+              </div>
+              <div class="roadmap-legend" aria-label="Roadmap semantic legend"><span><b class="kind-task">▣</b> Task</span><span><b class="kind-planned_task">▭</b> Planned task</span><span><b class="kind-phase">▰</b> Phase</span><span><b class="kind-gate">⬢</b> Gate</span><span><b class="kind-milestone">◆</b> Milestone</span><span class="relation"><b>→</b> Planning relation only</span><span class="canonical"><b>◇</b> Canonical Project Execution asset</span></div>
+              <div id="roadmapTimelineHint" class="roadmap-timeline-hint">Click or press Space to select · double-click or press Enter to open canonical detail · drag horizontally to schedule · resize bar edges with the handles or arrow keys · drag connector dots to create planning-only dependencies · F2 renames editable blocks · drag task cards from the tray.</div>
+            </section>
+            <aside class="roadmap-side-panel">
+              <section>
+                <div class="roadmap-side-heading"><div><span class="eyebrow">Selection</span><h3>Quick actions</h3></div></div>
+                <div id="roadmapInspector" class="roadmap-inspector roadmap-selection-hud empty">Select a block or dependency. Scheduling and relationships are edited directly on the canvas.</div>
+              </section>
+              <section id="roadmapTaskTray" class="roadmap-unscheduled-section">
+                <div class="roadmap-side-heading"><div><span class="eyebrow">Blocks</span><h3>Unscheduled tasks <span id="roadmapUnscheduledCount" class="pill">0</span></h3></div><button id="roadmapTaskTrayToggle" type="button" class="btn tiny" aria-expanded="true">Hide</button></div>
+                <div id="roadmapUnscheduledTasks" class="roadmap-unscheduled-list"></div>
+              </section>
+            </aside>
+          </div>
+        </div>
+        <div id="projectExecutionView" class="project-detail-view project-execution-view hidden">
+          <header class="project-execution-header">
+            <div><span class="eyebrow">Project execution</span><h3>Phases, Gates &amp; Milestones</h3><p>Coordinate canonical Tasks as whole units. Work Package scheduling remains task-local.</p></div>
+            <div class="project-execution-controls">
+              <span id="projectExecutionRevision" class="pill">rev —</span>
+              <label>Mode<select id="projectExecutionMode"><option value="observe">Observe</option><option value="assisted">Assisted</option><option value="automatic">Automatic</option></select></label>
+              <button id="projectExecutionHoldBtn" type="button" class="btn small">Hold execution</button>
+              <button id="projectExecutionAutomaticCycleBtn" type="button" class="btn small hidden">Run automatic cycle</button>
+              <button id="projectExecutionExportBtn" type="button" class="btn small">Export PDF</button>
+              <button id="projectExecutionCoordinationBtn" type="button" class="btn small">Coordination log</button>
+              <button id="projectExecutionRefreshBtn" type="button" class="btn small">Reconcile</button>
+            </div>
+          </header>
+          <div id="projectExecutionLoading" class="roadmap-loading hidden" role="status" aria-live="polite" aria-atomic="true">Reconciling Project Execution…</div>
+          <div id="projectExecutionWorkspaceEmpty" class="project-execution-empty" role="status" aria-live="polite" aria-atomic="true">Open Execution to load project control state.</div>
+          <div class="project-execution-empty-actions"><button id="projectExecutionInitialize" type="button" class="btn primary hidden">Initialize Project Execution</button></div>
+          <div id="projectExecutionWorkspace" class="project-execution-workspace hidden" aria-busy="false">
+            <div id="projectExecutionStateBanner" class="project-execution-state-banner hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+            <section id="projectExecutionCoordinationInspector" class="project-execution-coordination-inspector hidden" aria-labelledby="projectExecutionCoordinationTitle">
+              <header><div><span class="eyebrow">Recovery diagnostics</span><h3 id="projectExecutionCoordinationTitle">Canonical coordination</h3><p>Read-only three-way metadata and recent terminal coordination history. Recovery controls remain limited to server-derived safe actions.</p></div><button id="projectExecutionCoordinationClose" type="button" class="btn tiny">Close</button></header>
+              <div id="projectExecutionCoordinationForensics"></div>
+              <div class="project-execution-coordination-history"><div class="section-heading"><div><span class="eyebrow">Recent history</span><h4>Completed &amp; aborted operations</h4></div></div><div id="projectExecutionCoordinationHistory" class="project-execution-coordination-history-list"></div></div>
+            </section>
+            <div id="projectExecutionSummary" class="project-execution-summary"></div>
+            <section class="project-execution-current"><div class="section-heading"><div><span class="eyebrow">Current</span><h3>Execution position</h3></div></div><div id="projectExecutionCurrent"></div></section>
+            <section class="project-execution-attention"><div class="section-heading"><div><span class="eyebrow">Attention</span><h3>Project-level decisions &amp; blockers</h3></div></div><div id="projectExecutionAttention"></div></section>
+            <div class="project-execution-queues">
+              <section class="project-execution-queue ready"><div class="section-heading"><div><span class="eyebrow">Ready now</span><h3>Tasks eligible to start</h3></div><span id="projectExecutionReadyCount" class="pill">0</span></div><div id="projectExecutionReadyTasks" class="project-execution-queue-list"></div></section>
+              <section class="project-execution-queue blocked"><div class="section-heading"><div><span class="eyebrow">Blocked</span><h3>Tasks waiting on project prerequisites</h3></div><span id="projectExecutionBlockedCount" class="pill">0</span></div><div id="projectExecutionBlockedTasks" class="project-execution-queue-list"></div></section>
+            </div>
+            <section id="projectExecutionAutomaticPolicy" class="project-execution-section project-execution-policy hidden">
+              <div class="section-heading"><div><span class="eyebrow">Automatic policy</span><h3>Bounded Task concurrency</h3></div><button id="projectExecutionSavePolicy" type="button" class="btn tiny">Save policy</button></div>
+              <div class="form-grid four">
+                <label>Parallel Tasks <input id="projectExecutionMaxParallel" type="number" min="1" max="128" value="1"></label>
+                <label>Per Phase <input id="projectExecutionMaxPerPhase" type="number" min="1" max="128" value="1"></label>
+                <label>Active Phases <input id="projectExecutionMaxActivePhases" type="number" min="1" max="128" value="1"></label>
+                <label>Required Task failure <select id="projectExecutionFailureBehavior"><option value="stop_new">Stop new Tasks</option><option value="hold">Hold Project Execution</option><option value="continue">Continue unrelated Tasks</option></select></label>
+              </div>
+              <div id="projectExecutionAutomaticStatus" class="muted"></div>
+            </section>
+            <div class="project-execution-definitions-heading"><div><span class="eyebrow">Definitions</span><h3>Canonical Project Execution graph</h3><p>Manage the durable Phase, Gate, Milestone and Task metadata below. Operator actions stay above.</p></div></div>
+            <div class="project-execution-layout">
+              <div class="project-execution-asset-grid">
+                <section class="project-execution-section"><div class="section-heading"><div><span class="eyebrow">Lifecycle</span><h3>Phases</h3></div><button id="projectExecutionAddPhase" type="button" class="btn tiny">＋ Phase</button></div><div id="projectExecutionPhases" class="project-execution-card-list"></div></section>
+                <section class="project-execution-section"><div class="section-heading"><div><span class="eyebrow">Boundaries</span><h3>Gates</h3></div><button id="projectExecutionAddGate" type="button" class="btn tiny">＋ Gate</button></div><div id="projectExecutionGates" class="project-execution-card-list"></div></section>
+                <section class="project-execution-section"><div class="section-heading"><div><span class="eyebrow">Baselines</span><h3>Milestones</h3></div><button id="projectExecutionAddMilestone" type="button" class="btn tiny">＋ Milestone</button></div><div id="projectExecutionMilestones" class="project-execution-card-list"></div></section>
+                <section class="project-execution-section project-execution-task-section"><div class="section-heading"><div><span class="eyebrow">Canonical work</span><h3>Tasks</h3></div></div><div id="projectExecutionTasks" class="project-execution-task-list"></div></section>
+              </div>
+              <aside id="projectExecutionInspector" class="project-execution-inspector empty">Select a Phase, Gate or Milestone to inspect its canonical definition and runtime evidence.</aside>
+            </div>
+          </div>
+        </div>
+        <div id="projectTasksView" class="project-detail-view hidden">
+          <section class="new-task-panel">
+            <div><span class="eyebrow">New task</span><h3>What should be built?</h3><p>Describe the outcome. Execraft will infer the task identity, planning path, and workspace using project defaults.</p></div>
+            <textarea id="taskDescriptionInput" rows="4" aria-label="Task description" placeholder="Add OIDC authentication and protect the admin endpoints"></textarea>
+            <div id="taskRepositoryChoices" class="repository-choices"></div>
+            <details id="taskAdvancedOptions" class="task-advanced-panel">
+              <summary>Advanced options</summary>
+              <div class="form-grid three">
+                <label>Task ID <input id="taskIdInput" type="text" placeholder="automatic"></label>
+                <label>Planner <select id="taskPlannerInput"><option value="auto">Auto</option><option value="local">Local</option><option value="agent">Agent required</option></select></label>
+                <label class="check-row compact"><input id="taskNoWorkspaceInput" type="checkbox"> No workspace</label>
+              </div>
+              <details class="task-import-panel">
+                <summary>Import existing task definition</summary>
+                <p class="muted">Use an existing BRIEF.md and/or PLAN.md. Imported Markdown is preserved; a missing executable graph is validated or generated during planning.</p>
+                <div class="form-grid three">
+                  <label>BRIEF.md <input id="taskBriefFileInput" type="file" accept=".md,text/markdown,text/plain"></label>
+                  <label>PLAN.md <input id="taskPlanFileInput" type="file" accept=".md,text/markdown,text/plain"></label>
+                  <label>PLAN.graph.yaml <input id="taskPlanGraphFileInput" type="file" accept=".yaml,.yml,text/yaml,text/plain"></label>
+                </div>
+              </details>
+              <button id="previewTaskBtn" type="button" class="btn small">Preview task</button>
+            </details>
+            <div id="taskPreview" class="inspection-result empty hidden">Preview will show repository scope, agent/runtime choice, workspace, and plan effects.</div>
+            <div class="card-actions"><button id="createTaskBtn" type="button" class="btn primary">Create task</button></div>
+          </section>
+          <section class="task-catalog-section"><div class="section-heading"><div><span class="eyebrow">Task catalog</span><h3>Project tasks</h3></div></div><div id="projectTaskList" class="task-card-list"></div></section>
+        </div>
+        <div id="projectSettingsView" class="project-detail-view project-settings-view hidden">
+          <header class="project-section-header"><span class="eyebrow">Project settings</span><h3>Readiness, execution & verification</h3><p>Keep project-wide execution prerequisites together. Runtime, model route and location are independent; OpenClaw remains optional.</p></header>
+          <section class="project-settings-section"><h3>Readiness</h3><div id="projectReadinessView"></div></section>
+          <section class="project-settings-section"><h3>Execution readiness</h3><div id="projectExecutionReadinessView"></div></section>
+          <section class="project-settings-section"><div class="section-heading"><div><h3>Runtime topology</h3><p>Runtime, model route and execution target are independent. Inventory is passive; diagnostics are opt-in.</p></div></div><div id="projectRuntimeTopologyView" class="inspection-result empty">Open Runtime topology to inspect this project's execution architecture.</div></section>
+          <section class="project-settings-section execution-panel" id="projectExecutionSetupSection">
+            <div class="section-heading"><div><h3>OpenClaw setup</h3><p>Optional local/self-hosted runtime. Configuration is previewed before any file or host mutation.</p></div><button id="runtimeSetupRefresh" class="btn small" type="button">Refresh</button></div>
+            <div id="runtimeSetupStatus" class="inspection-result empty">Loading OpenClaw setup status…</div>
+            <div id="runtimeMigrationPanel" class="execution-setup-block hidden"><h4>Execution configuration migration</h4><p id="runtimeMigrationSummary" class="execution-note"></p><div class="execution-actions"><button id="runtimeMigrationPreview" class="btn small" type="button">Preview migration</button><button id="runtimeMigrationApply" class="btn small primary" type="button" disabled>Apply migration</button></div><pre id="runtimeMigrationDiff" class="execution-output muted hidden"></pre></div>
+            <div id="executionRouteSetupPanel" class="execution-setup-block">
+              <h4>Model route &amp; location</h4><p class="execution-note">Configure a model endpoint independently of OpenClaw. This supports Native + local Ollama/vLLM and prepares routes that OpenClaw can reuse.</p>
+              <div class="execution-row execution-row-3"><label>Execution profile<select id="executionSetupProfile"></select></label><label>Route ID<input id="executionSetupRouteId" placeholder="qwen-local"></label><label>Provider<input id="executionSetupProvider" value="ollama"></label></div>
+              <div class="execution-row execution-row-3"><label>Model<input id="executionSetupModel" placeholder="qwen3-coder:30b"></label><label>Credential reference<input id="executionSetupCredentialRef" placeholder="env:MODEL_API_KEY (optional)"></label><label>API family<input id="executionSetupApiFamily" value="openai-compatible" placeholder="openai"></label></div>
+              <div class="execution-row execution-row-3"><label>Location ID<input id="executionSetupTargetId" value="local-ollama"></label><label>Location kind<select id="executionSetupTargetKind"><option value="local">Local</option><option value="inference_endpoint">Inference satellite</option></select></label><label>Endpoint<input id="executionSetupEndpoint" value="http://127.0.0.1:11434/v1"></label></div>
+              <div class="execution-actions"><button id="executionSetupPreview" class="btn small" type="button">Preview model route</button><button id="executionSetupApply" class="btn small primary" type="button" disabled>Apply model route</button></div><pre id="executionSetupDiff" class="execution-output muted hidden"></pre>
+            </div>
+            <div id="openclawSetupPanel" class="execution-setup-block">
+              <div class="execution-row execution-row-3"><label>Mode<select id="openclawMode"><option value="managed">Managed</option><option value="external">External</option></select></label><label>Runtime ID<input id="openclawRuntimeId" value="openclaw-local"></label><label>Profile ID<input id="openclawProfileId" value="openclaw-local"></label></div>
+              <div class="execution-row execution-row-3"><label>Gateway<input id="openclawGateway" value="ws://127.0.0.1:18789"></label><label>Authentication<select id="openclawAuthKind"><option value="token">Token reference</option><option value="password">Password reference</option><option value="none">None</option></select></label><label>Credential reference<input id="openclawAuthRef" value="env:OPENCLAW_GATEWAY_TOKEN" placeholder="env:OPENCLAW_GATEWAY_TOKEN"></label></div>
+              <div class="execution-row execution-row-3"><label>Model route<select id="openclawModelRoute"></select></label><label>Location<select id="openclawTarget"></select></label><label>Capabilities<select id="openclawCapabilityPreset"><option value="coding">Implement + Review</option><option value="review">Review only</option><option value="implementation">Implementation only</option></select></label></div>
+              <details id="openclawQuickModel"><summary>Add a local/self-hosted model route</summary><div class="execution-row execution-row-3"><label>Route ID<input id="openclawNewRouteId" placeholder="qwen-local"></label><label>Provider<input id="openclawNewProvider" value="ollama"></label><label>Model<input id="openclawNewModel" placeholder="qwen3-coder:30b"></label></div><div class="execution-row execution-row-3"><label>Target ID<input id="openclawNewTargetId" value="local-ollama"></label><label>Target kind<select id="openclawNewTargetKind"><option value="local">Local</option><option value="inference_endpoint">Inference satellite</option></select></label><label>Endpoint<input id="openclawNewEndpoint" value="http://127.0.0.1:11434/v1"></label></div></details>
+              <div class="execution-actions"><button id="openclawSetupPreview" class="btn small" type="button">Preview configuration</button><button id="openclawSetupApply" class="btn small primary" type="button" disabled>Apply configuration</button><button id="openclawSetupDiagnose" class="btn small" type="button">Run runtime diagnostics</button></div><pre id="openclawSetupDiff" class="execution-output muted hidden"></pre><pre id="openclawSetupDiagnostics" class="execution-output muted hidden"></pre>
+              <details id="openclawInstallPanel"><summary>Install managed OpenClaw on this host</summary><div class="execution-row"><label>User npm prefix<input id="openclawInstallPrefix" value="~/.local"></label><label>Version<input id="openclawInstallVersion" placeholder="validated pinned version"></label></div><div class="execution-actions"><button id="openclawInstallPreview" class="btn small" type="button">Preview install</button><button id="openclawInstallApply" class="btn small primary" type="button" disabled>Install pinned OpenClaw</button></div><pre id="openclawInstallOutput" class="execution-output muted hidden"></pre></details>
+            </div>
+          </section>
+          <section class="project-settings-section"><h3>Verification</h3><form id="projectVerificationView"></form></section>
+        </div>
+        <div id="projectArchiveView" class="project-detail-view hidden">
+          <div class="archive-header">
+            <div><span class="eyebrow">Reversible catalog archive</span><h2>Projects and tasks</h2><p>Retire inactive work from normal selectors without deleting its dossier or runtime history.</p></div>
+            <button id="archiveRefreshBtn" class="btn">Refresh archive</button>
+          </div>
+          <div id="archiveSummary" class="archive-summary">Loading archive…</div>
+          <div class="archive-layout">
+            <section class="panel"><div class="panel-header"><div><h2>Archived tasks</h2><div class="sub">Inspect or restore retired task dossiers</div></div></div><div id="archivedTasks" class="archive-list"></div></section>
+            <section class="panel"><div class="panel-header"><div><h2>Archived projects</h2><div class="sub">Entire project descriptors and their tasks</div></div></div><div id="archivedProjects" class="archive-list"></div></section>
+            <section class="panel archive-inspector"><div class="panel-header"><div><h2 id="archiveInspectorTitle">Archive inspector</h2><div id="archiveInspectorMeta" class="sub">Select an archived item.</div></div><button id="reactivateArchiveBtn" class="btn primary" disabled>Reactivate</button></div><div id="archiveInspector" class="archive-inspector-body empty">Select an archived task or project to inspect its metadata, integrity report, and key files.</div></section>
+          </div>
+          <details class="active-catalog"><summary>Active catalog</summary><div class="active-catalog-grid"><section><h3>Tasks</h3><div id="activeTasks" class="archive-list compact"></div></section><section><h3>Projects</h3><div id="activeProjects" class="archive-list compact"></div></section></div></details>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <dialog id="projectExecutionAssetDialog" class="form-dialog" aria-labelledby="projectExecutionAssetDialogTitle">
+    <form>
+      <input id="projectExecutionAssetKind" type="hidden"><input id="projectExecutionAssetOriginalId" type="hidden">
+      <header><div><span class="eyebrow">Canonical Project asset</span><h2 id="projectExecutionAssetDialogTitle">Edit asset</h2></div></header>
+      <div class="form-grid two"><label>ID<input id="projectExecutionAssetId" type="text" required maxlength="96"></label><label>Title<input id="projectExecutionAssetTitle" type="text" required maxlength="500"></label></div>
+      <label>Description<textarea id="projectExecutionAssetDescription" rows="3" maxlength="20000"></textarea></label>
+      <div class="form-grid two"><label>Start<input id="projectExecutionAssetStart" type="date"></label><label>Target<input id="projectExecutionAssetTarget" type="date"></label></div>
+      <div id="projectExecutionPhaseFields" class="project-execution-editor-fields hidden"><div class="project-execution-reference-field"><span>Entry Gates</span><div id="projectExecutionPhaseEntryGates" class="project-execution-reference-picker"></div></div><div class="project-execution-reference-field"><span>Exit Gates</span><div id="projectExecutionPhaseExitGates" class="project-execution-reference-picker"></div></div><div class="project-execution-reference-field"><span>Milestones</span><div id="projectExecutionPhaseMilestones" class="project-execution-reference-picker"></div></div></div>
+      <div id="projectExecutionGateFields" class="project-execution-editor-fields hidden">
+        <div class="project-execution-editor-heading"><div><strong>Gate criteria</strong><small>ALL criteria must be satisfied. Criteria are typed; no free-form expression language is used.</small></div><button id="projectExecutionGateAddCriterion" type="button" class="btn tiny">＋ Criterion</button></div>
+        <div id="projectExecutionGateCriteria" class="project-execution-criteria-editor"></div>
+      </div>
+      <div id="projectExecutionMilestoneFields" class="project-execution-editor-fields hidden"><div class="project-execution-reference-field"><span>Required Tasks</span><div id="projectExecutionMilestoneTasks" class="project-execution-reference-picker"></div></div><div class="project-execution-reference-field"><span>Required Gates</span><div id="projectExecutionMilestoneGates" class="project-execution-reference-picker"></div></div><div class="project-execution-reference-field"><span>Required Milestones</span><div id="projectExecutionMilestoneMilestones" class="project-execution-reference-picker"></div></div><label>Delivery policy<select id="projectExecutionMilestoneDelivery"><option value="none">None</option><option value="candidate">Candidate baseline</option></select></label></div>
+      <div class="dialog-actions"><button id="projectExecutionAssetCancel" type="button" class="btn">Cancel</button><button type="submit" class="btn primary">Save canonical asset</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="projectExecutionTaskDialog" class="form-dialog" aria-labelledby="projectExecutionTaskDialogTitle">
+    <form>
+      <input id="projectExecutionTaskId" type="hidden">
+      <header><div><span class="eyebrow">Project Task metadata</span><h2 id="projectExecutionTaskDialogTitle">Assign Task</h2></div></header>
+      <label>Primary Phase<select id="projectExecutionTaskPhase" required></select></label>
+      <label class="check-row"><input id="projectExecutionTaskRequired" type="checkbox" checked> Required for Phase completion</label>
+      <div class="project-execution-reference-field"><span>Predecessor Tasks</span><div id="projectExecutionTaskPrerequisites" class="project-execution-reference-picker"></div></div>
+      <div class="project-execution-reference-field"><span>Required Project Gates</span><div id="projectExecutionTaskGates" class="project-execution-reference-picker"></div></div>
+      <div class="dialog-actions"><button id="projectExecutionTaskCancel" type="button" class="btn">Cancel</button><button type="submit" class="btn primary">Save Task metadata</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="projectExecutionGateDecisionDialog" class="form-dialog project-execution-decision-dialog" aria-labelledby="projectExecutionGateDecisionTitle" aria-describedby="projectExecutionGateDecisionContext">
+    <form>
+      <input id="projectExecutionGateDecisionId" type="hidden"><input id="projectExecutionGateDecisionValue" type="hidden">
+      <header><div><span id="projectExecutionGateDecisionEyebrow" class="eyebrow">Evidence-bound decision</span><h2 id="projectExecutionGateDecisionTitle">Review Project Gate</h2></div></header>
+      <div class="project-execution-decision-summary">
+        <div><span>Gate state</span><strong id="projectExecutionGateDecisionState">—</strong></div>
+        <div><span>Evidence fingerprint</span><code id="projectExecutionGateDecisionFingerprint">—</code></div>
+      </div>
+      <section class="project-execution-decision-evidence"><div class="project-execution-editor-heading"><div><strong>Current evidence</strong><small id="projectExecutionGateDecisionContext">The decision is bound to this exact evidence fingerprint. Incompatible evidence changes make it stale.</small></div></div><div id="projectExecutionGateDecisionEvidence" class="project-execution-evidence"></div></section>
+      <label>Actor<input id="projectExecutionGateDecisionActor" type="text" required maxlength="200" autocomplete="username" placeholder="operator"></label>
+      <label>Reason<textarea id="projectExecutionGateDecisionReason" rows="3" maxlength="4000" placeholder="Explain the decision"></textarea></label>
+      <div id="projectExecutionGateDecisionWarning" class="project-execution-decision-warning hidden"></div>
+      <div class="dialog-actions"><button id="projectExecutionGateDecisionCancel" type="button" class="btn">Cancel</button><button id="projectExecutionGateDecisionSubmit" type="submit" class="btn primary">Record decision</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="projectExecutionHoldDialog" class="form-dialog" aria-labelledby="projectExecutionHoldTitle" aria-describedby="projectExecutionHoldDescription">
+    <form>
+      <header><div><span class="eyebrow">Project-level hold</span><h2 id="projectExecutionHoldTitle">Hold Project Execution</h2></div></header>
+      <p id="projectExecutionHoldDescription" class="project-execution-dialog-copy">A project hold prevents new Project Execution progress without changing canonical Task runtime history. Record why the operator is stopping progression.</p>
+      <label>Reason<textarea id="projectExecutionHoldReason" rows="3" maxlength="4000" required placeholder="operator hold"></textarea></label>
+      <div class="dialog-actions"><button id="projectExecutionHoldCancel" type="button" class="btn">Cancel</button><button type="submit" class="btn warn">Hold Project Execution</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="roadmapCreateDialog" class="form-dialog" aria-labelledby="roadmapCreateTitle">
+    <form>
+      <header><div><span class="eyebrow">Project planning</span><h2 id="roadmapCreateTitle">New roadmap</h2></div></header>
+      <label>Title<input id="roadmapNameInput" type="text" maxlength="500" required placeholder="Platform evolution 2026"></label>
+      <label>Description<textarea id="roadmapDescriptionInput" rows="3" maxlength="20000" placeholder="Optional scope and planning intent"></textarea></label>
+      <label>Roadmap ID<input id="roadmapIdInput" type="text" maxlength="96" placeholder="automatic from title"></label>
+      <div class="dialog-actions"><button id="roadmapCreateCancel" type="button" class="btn">Cancel</button><button type="submit" class="btn primary">Save roadmap</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="roadmapCanonicalInitializeDialog" class="form-dialog roadmap-canonical-initialize-dialog" aria-labelledby="roadmapCanonicalInitializeTitle" aria-describedby="roadmapCanonicalInitializeMessage">
+    <form method="dialog">
+      <header><div><span class="eyebrow">Canonical project asset</span><h2 id="roadmapCanonicalInitializeTitle">Initialize Project Execution?</h2></div></header>
+      <p id="roadmapCanonicalInitializeMessage">Creating this Project asset from the Roadmap initializes PROJECT_EXECUTION.yaml and makes the asset canonical.</p>
+      <div class="roadmap-canonical-initialize-note"><strong>Roadmap remains a planning surface.</strong><span>Title, description, and schedule for Phase/Gate/Milestone assets will be owned by Project Execution and projected back into every Roadmap.</span></div>
+      <div class="dialog-actions"><button id="roadmapCanonicalInitializeCancel" type="button" class="btn">Cancel</button><button id="roadmapCanonicalInitializeConfirm" type="button" class="btn primary">Initialize &amp; create</button></div>
+    </form>
+  </dialog>
+
+</main>
+<main id="mainContent">
+  <section id="actionCenter" class="action-center" aria-labelledby="actionCenterTitle">
+    <div class="action-identity">
+      <span id="driverState" class="pill" role="status" aria-live="polite"><span class="status-dot"></span>Idle</span>
+      <div>
+        <span class="eyebrow">Current operation</span>
+        <h2 id="actionCenterTitle">Loading task state…</h2>
+        <p id="actionCenterContext">Resolving the active package and next safe action.</p>
+      </div>
+    </div>
+    <div class="action-buttons">
+      <button id="runBtn" class="btn primary">Run / Resume</button>
+      <button id="approveScopeBtn" class="btn primary hidden" type="button">Approve protected scope</button>
+      <button id="acceptRiskBtn" class="btn warn hidden" type="button">Accept &amp; continue</button>
+      <button id="stopBtn" class="btn danger" disabled>Stop</button>
+      <button id="openCurrentAgent" class="btn" disabled>Open agent</button>
+    </div>
+    <details id="actionDetails" class="action-details">
+      <summary id="actionDetailsSummary">Work Package — · no active agent</summary>
+      <div class="action-details-body">
+        <dl class="action-facts">
+          <div><dt>Work Package</dt><dd id="actionPackage">—</dd></div>
+          <div><dt>Agents / stages</dt><dd id="actionAgent">—</dd></div>
+          <div><dt>Elapsed</dt><dd id="actionElapsed">—</dd></div>
+        </dl>
+        <div class="action-secondary-buttons">
+          <button id="openChangesAction" class="btn small">Review changes</button>
+          <button id="openLogsAction" class="btn small">Open logs</button>
+        </div>
+        <div id="executionContexts" class="execution-contexts hidden" aria-label="Active agent executions" aria-live="polite"></div>
+      </div>
+    </details>
+    <section id="supervisorPanel" class="supervisor-notice hidden" aria-labelledby="supervisorNoticeTitle" aria-live="polite">
+      <div class="supervisor-notice-head">
+        <span class="supervisor-icon">S</span>
+        <div><strong id="supervisorNoticeTitle">Supervisor recovery</strong><small id="supervisorCollapsedSummary">Loading incident state…</small></div>
+        <span id="supervisorStatus" class="pill">loading</span>
+      </div>
+      <div id="supervisorSummary" class="supervisor-summary">No active incident.</div>
+      <form id="supervisorDecision" class="supervisor-decision hidden">
+        <div><span class="pill warn">OPERATOR DECISION</span><h3 id="supervisorQuestion"></h3><p id="supervisorQuestionContext"></p></div>
+        <div id="supervisorOptions" class="supervisor-options"></div>
+        <label for="supervisorGuidance">Optional guidance</label>
+        <textarea id="supervisorGuidance" rows="3" maxlength="4000" placeholder="Add business context or constraints the Supervisor cannot infer from the repository."></textarea>
+        <div class="supervisor-decision-actions"><button id="submitSupervisorAnswer" class="btn primary" type="submit" disabled>Send decision and resume</button></div>
+      </form>
+      <details id="supervisorDetails" class="supervisor-details">
+        <summary>Recovery details</summary>
+        <div class="supervisor-content">
+          <div class="supervisor-identity"><div><div class="supervisor-title-row"><h2>Incident recovery</h2></div><div id="supervisorSubtitle" class="sub">Autonomous incident recovery and agent coordination</div></div></div>
+          <div class="supervisor-progress">
+            <div><label>Incident</label><strong id="supervisorIncident">None</strong></div>
+            <div><label>Package</label><strong id="supervisorPackage">—</strong></div>
+            <div><label>Attempts</label><strong id="supervisorAttempts">0 / 0</strong></div>
+            <div><label>Delegations</label><strong id="supervisorDelegations">0</strong></div>
+          </div>
+          <div class="supervisor-actions">
+            <button id="openSupervisorConsole" class="btn small" disabled>Open supervisor console</button>
+            <button id="pauseSupervisor" class="btn small danger" disabled>Pause supervision</button>
+          </div>
+        </div>
+      </details>
+    </section>
+    <div id="runMessage" class="run-message" role="alert"></div>
+  </section>
+  <div class="task-navigation-row">
+    <button id="taskRoadmapBackBtn" class="task-roadmap-back" type="button" title="Return to this project's roadmap">← Project roadmap</button>
+    <nav class="tabs" role="tablist" aria-label="Task workbench views">
+      <button id="runTab" class="tab active" role="tab" aria-selected="true" aria-controls="runView" tabindex="0" data-view="run">Run</button>
+      <button id="agentsTab" class="tab" role="tab" aria-selected="false" aria-controls="agentsView" tabindex="-1" data-view="agents">Agents</button>
+      <button id="planTab" class="tab" role="tab" aria-selected="false" aria-controls="planView" tabindex="-1" data-view="plan">Plan</button>
+      <button id="changesTab" class="tab" role="tab" aria-selected="false" aria-controls="changesView" tabindex="-1" data-view="changes">Changes</button>
+    </nav>
+    <div class="task-export-actions"><button id="taskExportPdfBtn" type="button" class="btn small">Export PDF</button><button id="taskExportSvgBtn" type="button" class="btn small">SVG summary</button></div>
+    <details id="taskMoreMenu" class="task-more-menu">
+      <summary>More</summary>
+      <div class="task-more-popover">
+        <button type="button" data-utility-view="logs"><strong>Logs & diagnostics</strong><small>Runtime logs and orchestrator state</small></button>
+        <button type="button" data-utility-view="config"><strong>Advanced configuration</strong><small>Raw validated task/project YAML</small></button>
+      </div>
+    </details>
+  </div>
+
+  <section id="runView" class="view active" role="tabpanel" aria-labelledby="runTab">
+    <section id="diagnosticsStrip" class="execution-health-strip" aria-label="Execution health">
+      <button id="executionHealthDrawerOpen" class="execution-health-strip-button" type="button" aria-expanded="false" aria-controls="executionHealthDrawer">
+        <span class="infrastructure-title">Execution health</span>
+        <span id="infrastructureHealth" class="pill" role="status" aria-live="polite">Loading…</span>
+        <small id="diagnosticsSummary">Loading execution capacity…</small>
+        <span class="execution-health-strip-action" aria-hidden="true">Details</span>
+      </button>
+    </section>
+
+    <aside id="executionHealthDrawer" class="execution-health-drawer" role="dialog" aria-modal="false" aria-labelledby="executionHealthDrawerTitle" tabindex="-1" hidden>
+      <header class="execution-health-drawer-header">
+        <div><span class="eyebrow">Run infrastructure</span><h2 id="executionHealthDrawerTitle">Execution health</h2><p>Active work and problems first. Runtime, model, target, and profile details stay available when you need them.</p></div>
+        <button id="executionHealthDrawerClose" class="btn small" type="button" aria-label="Close execution health">Close</button>
+      </header>
+      <div class="execution-health-drawer-body">
+        <div id="executionHealthOverview" class="execution-health-overview"></div>
+        <details class="execution-health-metrics">
+          <summary>Task &amp; capacity metrics</summary>
+          <div class="metrics">
+            <div class="metric"><label>State</label><strong id="mState">—</strong><small id="mStateDetail">—</small></div>
+            <div class="metric"><label>Progress</label><strong id="mProgress">—</strong><small id="mProgressDetail">—</small></div>
+            <div class="metric"><label>Active workers</label><strong id="mWorkers">—</strong><small id="mWave">No parallel wave</small></div>
+            <div class="metric"><label>Ready queue</label><strong id="mReady">—</strong><small id="mBlocked">— blocked</small></div>
+            <div class="metric"><label>Profiles</label><strong id="mAgents">—</strong><small id="mAgentsDetail">—</small></div>
+            <div class="metric token-metric"><label>LLM token processing</label><strong id="mTokens">—</strong><small id="mTokensDetail">—</small><div id="mTokensBreakdown" class="metric-breakdown"></div></div>
+            <div class="metric"><label>Satellite nodes</label><strong id="mNodes">—</strong><small id="mNodesDetail">—</small></div>
+          </div>
+        </details>
+        <details id="executionProfileMaintenance" class="execution-profile-maintenance">
+          <summary>Advanced profile maintenance</summary>
+          <div class="execution-profile-maintenance-body">
+            <p class="execution-note">Profile IDs, timeouts, complexity ceilings, temporary promotions, and Native maintenance actions are advanced diagnostics. OpenClaw lifecycle checks remain under Runtime diagnostics.</p>
+            <div id="agentList" class="agent-list"></div>
+          </div>
+        </details>
+        <section id="runtimeRoutingSection" class="infrastructure-detail execution-panel" aria-labelledby="executionTitle">
+          <div class="panel-header"><div><h3 id="executionTitle">Execution infrastructure</h3><div class="sub">Passive lane/runtime/model/location inventory. Work Package routing stays contextual in the Work Package inspector.</div></div><button id="runtimeTopologyRefresh" type="button" class="btn small">Refresh</button></div>
+
+          <details id="executionHealth" class="execution-health">
+            <summary><span id="executionHealthPill" class="pill">Not loaded</span><small id="executionHealthSummary">Execution configuration has not been loaded.</small></summary>
+            <div class="execution-health-body">
+              <p class="execution-note">Diagnostics are explicit: opening this drawer never contacts a gateway or model endpoint.</p>
+              <div class="execution-row execution-row-3">
+                <label>Runtime<select id="runtimeDiagnosticsRuntime"></select></label>
+                <label>Model<select id="runtimeDiagnosticsModel"></select></label>
+                <label>Location<select id="runtimeDiagnosticsTarget"></select></label>
+              </div>
+              <div class="execution-actions"><button id="runtimeDiagnosticsRun" type="button" class="btn small">Run diagnostics</button></div>
+              <pre id="runtimeDiagnosticsOutput" class="execution-output muted">Select one or more layers to diagnose.</pre>
+            </div>
+          </details>
+
+          <div id="runtimeTopologyStatus" class="execution-status muted">Runtime topology has not been loaded.</div>
+
+          <details id="executionAdvanced" class="execution-advanced">
+            <summary>Advanced configuration</summary>
+            <div class="execution-advanced-body">
+              <p class="execution-note">Execution lanes summarize compatible runtime + model + location combinations for operators. Raw runtimes, models, locations and profiles remain owned by the project's schema-v4 configuration; this inventory is read-only and passive.</p>
+              <div class="execution-actions"><button type="button" class="btn small" data-utility-view="config">Open configuration editor</button></div>
+              <h4>Execution lanes</h4><div id="runtimeTopologyLanes" class="execution-inventory-list"></div>
+              <div class="execution-inventory">
+                <div><h4>Runtimes</h4><div id="runtimeTopologyRuntimes" class="execution-inventory-list"></div></div>
+                <div><h4>Models</h4><div id="runtimeTopologyModels" class="execution-inventory-list"></div></div>
+                <div><h4>Locations</h4><div id="runtimeTopologyTargets" class="execution-inventory-list"></div></div>
+              </div>
+              <h4>Raw profiles</h4><div id="runtimeTopologyProfiles" class="execution-inventory-list"></div>
+            </div>
+          </details>
+        </section>
+      </div>
+    </aside>
+
+    <section class="panel workflow-panel">
+      <div class="panel-header workflow-panel-header">
+        <div><h2>Work Packages</h2><div class="sub">Use the dependency graph as the primary execution workspace; switch to List for a compact sequential scan.</div></div>
+        <div class="workflow-toolbar">
+          <div id="workflowViewMode" class="workflow-view-mode" role="group" aria-label="Workflow representation">
+            <button type="button" data-workflow-view="graph" aria-pressed="true">Graph</button>
+            <button type="button" data-workflow-view="list" aria-pressed="false">List</button>
+          </div>
+          <select id="workflowFilter" aria-label="Workflow filter"><option value="all">All Work Packages</option><option value="remaining">Remaining</option><option value="active">Active only</option><option value="shards">Shards only</option></select>
+          <button id="workflowFollowActive" class="workflow-follow-active" type="button" aria-pressed="false" title="When enabled, locate the primary active Work Package after it changes">Follow active</button>
+          <div id="workflowGraphControls" class="workflow-graph-controls">
+            <div id="workflowEdgeMode" class="workflow-edge-mode" role="group" aria-label="Dependency line detail">
+              <button type="button" data-workflow-edge-mode="essential" aria-pressed="true" title="Hide direct dependencies already implied by another path">Compact</button>
+              <button type="button" data-workflow-edge-mode="all" aria-pressed="false" title="Show every direct dependency declared by the plan">All links</button>
+            </div>
+            <button id="workflowLocateBtn" class="workflow-view-button locate" type="button" title="Locate the selected Work Package, or the primary active Work Package when nothing is selected">Locate</button>
+            <div id="workflowViewportControls" class="workflow-viewport-controls" role="group" aria-label="Workflow view controls">
+              <button class="workflow-view-button" type="button" data-workflow-viewport-action="zoom-out" aria-label="Zoom out" title="Zoom out (−)">−</button>
+              <output id="workflowZoom" class="workflow-zoom" aria-label="Current workflow zoom">100%</output>
+              <button class="workflow-view-button" type="button" data-workflow-viewport-action="zoom-in" aria-label="Zoom in" title="Zoom in (+)">+</button>
+              <button class="workflow-view-button fit" type="button" data-workflow-viewport-action="fit" title="Fit the full workflow in the viewport">Fit</button>
+              <button class="workflow-view-button reset" type="button" data-workflow-viewport-action="reset" title="Reset zoom and position (0)">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="workflow-run-summary"><span id="workflowCurrentLabel" class="workflow-current-summary">No active Work Package</span><span id="workflowListHint">Selection highlights context without moving the viewport. Use Locate or Follow active when navigation is wanted.</span></div>
+      <div id="workflowList" class="work-package-list hidden" aria-label="Work Package list"></div>
+      <div id="workflowGraphView" class="workflow-graph-view">
+        <div class="workflow-legend" aria-label="Workflow graph legend"><span><i class="legend-edge"></i><b id="workflowEdgeSummary" class="workflow-edge-summary" aria-live="polite">Essential dependencies</b></span><span><i class="legend-chip parallel"></i> parallel</span><span><i class="legend-chip shard"></i> shard</span><span id="workflowNavigationHint" class="workflow-navigation-hint">Drag empty space to pan · vertical wheel scrolls the page · Shift + wheel pans horizontally · Ctrl/⌘ + wheel zooms · selection never recenters.</span></div>
+        <div id="workflowWrap" class="workflow-wrap" tabindex="0" role="region" aria-label="Interactive Work Package dependency graph" aria-describedby="workflowNavigationHint"><div id="workflowViewport" class="workflow-viewport-space"><div id="workflowCanvas" class="workflow-canvas"><svg id="workflowEdges" class="workflow-connections" aria-hidden="true"></svg><div id="workflow" class="workflow-board" aria-label="Work Package workflow board"></div></div></div></div>
+      </div>
+    </section>
+  </section>
+
+  <section id="agentsView" class="view agents-view" role="tabpanel" aria-labelledby="agentsTab" hidden>
+    <section class="panel agent-workforce-panel">
+      <div class="panel-header agent-workforce-header">
+        <div><span class="eyebrow">Task workforce</span><h2>Agents</h2><div class="sub">Your workers: what they are doing, who needs attention, and who is ready for the next assignment.</div></div>
+        <div id="agentWorkforceSummary" class="agent-workforce-summary" aria-label="Agent workforce summary"></div>
+      </div>
+      <div id="agentWorkforceGroups" class="agent-workforce-groups" aria-live="polite"></div>
+    </section>
+    <section class="agent-workforce-footnote">
+      <strong>Workforce vs infrastructure.</strong> Agent actions live here. Runtime, model-route, target, topology, and raw profile configuration remain in Execution health and Project Settings.
+    </section>
+  </section>
+
+  <section id="planView" class="view" role="tabpanel" aria-labelledby="planTab" hidden>
+    <div class="task-lifecycle-header">
+      <div><span class="eyebrow">Versioned task lifecycle</span><h2>Definition, replanning & completion</h2><p>Edit through candidate revisions, inspect deterministic impact, and retire completed workspaces through the same safety checks used by the CLI.</p></div>
+      <div class="task-lifecycle-actions"><button id="taskLifecycleRefreshBtn" class="btn">Refresh</button><button id="recoverReplanBtn" class="btn danger" disabled>Recover interrupted replan</button></div>
+    </div>
+    <div id="taskLifecycleMessage" class="workspace-note">Load the task lifecycle to inspect definition integrity and cleanup state.</div>
+    <div class="task-lifecycle-metrics">
+      <article><span>Task</span><strong id="taskLifecycleStatus">—</strong><small id="taskLifecycleStatusDetail">—</small></article>
+      <article><span>Definition</span><strong id="definitionRevision">—</strong><small id="definitionIntegrity">—</small></article>
+      <article><span>Completion</span><strong id="completionStatus">—</strong><small id="completionDetail">—</small></article>
+      <article><span>Workspace</span><strong id="lifecycleWorkspaceStatus">—</strong><small id="lifecycleWorkspaceDetail">—</small></article>
+    </div>
+    <div class="task-lifecycle-layout">
+      <section class="panel definition-editor-panel">
+        <div class="panel-header"><div><h2>Task definition</h2><div class="sub">Generate a plan from the accepted brief, review the candidate, then apply it.</div></div></div>
+        <div class="plan-generation">
+          <div><strong>Generate from BRIEF.md</strong><small>Creates both PLAN.md and PLAN.graph.yaml without changing the accepted definition.</small></div>
+          <label>Planning agent <select id="generatePlanProviderInput"><option value="codex">Codex</option></select></label>
+          <button id="generatePlanBtn" class="btn primary">Generate plan</button>
+          <div id="planGenerationStatus" class="plan-generation-status">Waiting for generation.</div>
+        </div>
+        <details class="advanced-replan">
+          <summary>Advanced definition editing and replanning</summary>
+          <div class="advanced-replan-content">
+            <div class="definition-editor-tabs" role="tablist" aria-label="Task definition documents">
+              <button class="btn small definition-doc-tab active" data-definition-document="brief">BRIEF.md</button>
+              <button class="btn small definition-doc-tab" data-definition-document="plan">PLAN.md</button>
+              <button class="btn small definition-doc-tab" data-definition-document="graph">PLAN.graph.yaml</button>
+            </div>
+            <textarea id="taskBriefEditor" class="task-definition-editor" spellcheck="false" aria-label="BRIEF.md editor"></textarea>
+            <textarea id="taskPlanEditor" class="task-definition-editor hidden" spellcheck="false" aria-label="PLAN.md editor"></textarea>
+            <textarea id="taskPlanGraphEditor" class="task-definition-editor hidden" spellcheck="false" aria-label="PLAN.graph.yaml editor"></textarea>
+            <div class="replan-controls">
+              <label>Change request<textarea id="replanRequestInput" rows="3" placeholder="Describe why the task definition must change. Optional when editing the documents directly."></textarea></label>
+              <div class="form-grid three">
+                <label>Planning agent <input id="replanProviderInput" type="text" placeholder="auto"></label>
+                <label>Supersede active packages <textarea id="replanSupersedeInput" rows="2" placeholder="implementation=implementation-v2"></textarea></label>
+                <label class="check-row compact"><input id="replanStructuralOnlyInput" type="checkbox"> Allow structural-only validation</label>
+              </div>
+              <div class="card-actions"><button id="stageReplanBtn" class="btn primary">Stage edited candidate</button><button id="adoptCurrentDefinitionBtn" class="btn">Adopt current files</button></div>
+            </div>
+          </div>
+        </details>
+      </section>
+      <section class="panel replan-impact-panel">
+        <div class="panel-header"><div><h2>Candidate impact</h2><div id="candidateMeta" class="sub">No candidate selected.</div></div><div><select id="replanCandidateSelect" aria-label="Pending replan candidates"><option value="">No pending candidates</option></select> <button id="loadReplanCandidateBtn" class="btn small" disabled>Load</button></div></div>
+        <div id="replanImpact" class="replan-impact empty">Stage or select a candidate to inspect package reconciliation.</div>
+        <details class="candidate-diff-panel" open><summary>Definition diff</summary><div id="candidateDiffTabs" class="definition-editor-tabs"></div><pre id="candidateDiff" class="diff-output">No candidate diff loaded.</pre></details>
+        <div class="editor-actions"><span id="replanApplyMessage" class="message">Application is transactional and requires quiescent execution.</span><button id="applyReplanBtn" class="btn primary" disabled>Apply candidate</button></div>
+      </section>
+    </div>
+    <div class="task-lifecycle-lower">
+      <section class="panel repository-sync-panel">
+        <div class="panel-header"><div><h2>Upstream synchronization</h2><div class="sub">Measure branch divergence and insert an explicit merge Work Package before pending work.</div></div><button id="refreshRepositorySyncBtn" class="btn small">Refresh upstream</button></div>
+        <div class="form-grid three">
+          <label>Before Work Package <input id="repositorySyncBeforeInput" type="text" placeholder="WP20"></label>
+          <label>Repositories <input id="repositorySyncRepositoriesInput" type="text" placeholder="core, frontend"></label>
+          <label>Sync package ID <input id="repositorySyncIdInput" type="text" placeholder="deploy-sync"></label>
+          <label>Remote <input id="repositorySyncRemoteInput" type="text" value="origin"></label>
+          <label>Conflict policy <select id="repositorySyncConflictPolicy"><option value="ai_resolve">AI resolve + review</option><option value="human">Human resolution</option></select></label>
+          <label>Source overrides <textarea id="repositorySyncSourcesInput" rows="2" placeholder="core=feature_branch"></textarea></label>
+        </div>
+        <div class="card-actions"><button id="stageRepositorySyncBtn" class="btn primary">Stage sync Work Package</button></div>
+        <div id="repositorySyncStatus" class="repository-sync-list empty">No repository-sync Work Packages.</div>
+      </section>
+      <section class="panel completion-panel">
+        <div class="panel-header"><div><h2>Final sync, archive & cleanup</h2><div class="sub">Optionally converge with upstream, then archive before retiring exact task resources.</div></div><div class="card-actions"><button id="finalSyncBtn" class="btn" disabled>Review final sync</button><button id="completeTaskBtn" class="btn danger" disabled>Archive & clean workspace</button></div></div>
+        <div id="completionPreview" class="completion-preview empty">Completion preflight has not been loaded.</div>
+      </section>
+      <section class="panel ownership-panel">
+        <div class="panel-header"><div><h2>Workspace ownership</h2><div class="sub">Registered paths, branches, runtime namespace and retained resources.</div></div></div>
+        <div id="workspaceOwnership" class="ownership-list"></div>
+        <h3>Retained after completion</h3><div id="retainedResources" class="retained-resource-list"></div>
+      </section>
+      <section class="panel revision-history-panel">
+        <div class="panel-header"><div><h2>Definition history</h2><div class="sub">Accepted revisions remain immutable and inspectable.</div></div></div>
+        <div id="definitionRevisionHistory" class="revision-history-list"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="changesView" class="view" role="tabpanel" aria-labelledby="changesTab" hidden>
+    <section class="panel changes-review-header">
+      <div>
+        <span class="eyebrow">Code review</span>
+        <h2>Changes</h2>
+        <div id="workspaceSummary" class="sub">Loading task workspace…</div>
+      </div>
+      <button id="workspaceRefreshBtn" class="btn small">Refresh</button>
+      <div id="workspaceRepositories" class="workspace-repo-filters" aria-label="Repository filter"></div>
+    </section>
+    <div id="workspaceNote" class="workspace-note">Loading task workspace…</div>
+    <div class="changes-review-layout">
+      <section class="panel changes-file-panel">
+        <div class="panel-header changes-file-header">
+          <div><h2 id="workspaceRepoTitle">Changed files</h2><div id="workspaceRepoMeta" class="sub"></div></div>
+          <button id="selectAllChangesBtn" class="btn small" disabled>Select visible</button>
+        </div>
+        <div class="change-filter-bar" role="group" aria-label="Filter changed files">
+          <button class="change-filter active" data-change-filter="all">All</button>
+          <button class="change-filter" data-change-filter="modified">Modified</button>
+          <button class="change-filter" data-change-filter="added">Added</button>
+          <button class="change-filter" data-change-filter="deleted">Deleted</button>
+        </div>
+        <div id="workspaceChanges" class="change-list"></div>
+      </section>
+      <section class="panel workspace-diff-panel">
+        <div class="panel-header"><div><h2 id="workspaceDiffTitle">Review diff</h2><div id="workspaceDiffMeta" class="sub">Select a changed file.</div></div></div>
+        <pre id="workspaceDiff" class="diff-output">Select a changed file to inspect its staged and working-tree diff.</pre>
+        <details id="commitReview" class="commit-review">
+          <summary>Commit reviewed changes</summary>
+          <div class="commit-form">
+            <label for="commitSubject">Commit subject</label>
+            <input id="commitSubject" type="text" maxlength="120" placeholder="Imperative summary of the selected changes">
+            <label for="commitBody">Commit body</label>
+            <textarea id="commitBody" maxlength="8000" placeholder="Optional implementation details, rationale and verification"></textarea>
+            <label for="commitAgent">AI commit-message agent</label>
+            <select id="commitAgent"></select>
+            <div class="commit-actions">
+              <label class="review-check"><input id="commitReviewed" type="checkbox">I inspected every selected diff and reviewed the available verification evidence.</label>
+              <div><button id="deleteWorkspaceFilesBtn" class="btn danger" disabled>Delete untracked</button> <button id="generateCommitBtn" class="btn" disabled>Generate message</button> <button id="commitChangesBtn" class="btn primary" disabled>Commit selected</button></div>
+            </div>
+            <div id="commitMessage" class="message commit-message">Commit operations are explicit and local: nothing is pushed or changes branches. AI message generation is read-only.</div>
+          </div>
+        </details>
+      </section>
+    </div>
+  </section>
+
+  <section id="configView" class="view utility-view" aria-label="Advanced configuration" hidden>
+    <div class="config-layout">
+      <aside class="panel"><div class="panel-header"><div><h2>Advanced configuration</h2><div class="sub">Raw task and project files</div></div></div><div id="configMenu" class="config-menu"></div></aside>
+      <section class="panel editor-wrap">
+        <div class="panel-header"><div><h2 id="configTitle">Select a file</h2><div id="configPath" class="sub"></div></div><button id="reloadConfigBtn" class="btn" disabled>Reload</button></div>
+        <div id="configMeta" class="editor-meta">No configuration loaded.</div>
+        <textarea id="configEditor" spellcheck="false" disabled></textarea>
+        <div class="editor-actions"><span id="configMessage" class="message">Changes are validated before an atomic save. A backup is always created.</span><div><button id="validateConfigBtn" class="btn" disabled>Validate</button> <button id="saveConfigBtn" class="btn primary" disabled>Save</button></div></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="logsView" class="view utility-view" aria-label="Logs and diagnostics" hidden>
+    <div class="runtime-observability-layout">
+    <section class="panel log-panel">
+      <div class="panel-header"><div><h2>Runtime logs</h2><div id="logPath" class="sub"></div></div><div class="log-toolbar"><select id="logSource"><option value="orchestrator">Orchestrator events</option><option value="driver">GUI driver output</option></select><button id="clearLogBtn" class="btn">Clear view</button><button id="followLogBtn" class="btn primary">Following</button></div></div>
+      <pre id="logOutput"></pre>
+    </section>
+    <aside class="panel orchestrator-machine-panel" aria-labelledby="orchestratorMachineTitle">
+      <div class="panel-header"><div><h2 id="orchestratorMachineTitle">Orchestrator state machine</h2><div class="sub">Durable controller and active package stage</div></div><span id="orchestratorMachineState" class="pill">—</span></div>
+      <div id="orchestratorStateMachine" class="state-machine" aria-live="polite"></div>
+    </aside>
+    </div>
+  </section>
+</main>
+<aside id="agentConsoleModal" class="workbench-dock hidden" aria-hidden="true" aria-labelledby="agentConsoleTitle">
+  <section class="console-dialog">
+    <header class="console-head">
+      <div class="console-title"><span class="console-agent-icon">›_</span><div><h2 id="agentConsoleTitle">Agent</h2><small id="agentConsoleSubtitle">Live agent session</small></div></div>
+      <div id="agentConsoleStatus" class="console-status" role="status" aria-live="polite"></div>
+      <div class="workbench-window-actions">
+        <button id="maximizeAgentConsole" class="icon-btn" title="Maximize agent workbench" aria-label="Maximize agent workbench">□</button>
+        <button id="closeAgentConsole" class="icon-btn" title="Hide agent workbench" aria-label="Hide agent workbench">×</button>
+      </div>
+    </header>
+    <nav class="console-tabs console-primary-tabs" role="tablist" aria-label="Agent workbench views">
+      <button class="console-tab active" role="tab" aria-selected="true" data-console-view="conversation">Conversation</button>
+      <button class="console-tab" role="tab" aria-selected="false" data-console-view="changes">Changes</button>
+      <span class="console-toolbar-spacer"></span>
+      <details id="agentAdvancedControls" class="agent-advanced-controls">
+        <summary>Advanced</summary>
+        <div class="agent-advanced-panel">
+          <label for="agentConsoleSession">Session</label>
+          <select id="agentConsoleSession" aria-label="Agent session"></select>
+          <div class="agent-advanced-actions">
+            <button id="newAgentTerminal" class="btn small primary" disabled>New terminal</button>
+            <button id="killAgentTerminal" class="btn small danger" disabled>Kill terminal</button>
+            <button id="enableAgentInput" class="btn small hidden" disabled>Enable input</button>
+            <button id="copyAgentConsole" class="btn small" disabled>Copy</button>
+          </div>
+          <div class="agent-advanced-views" role="group" aria-label="Advanced agent views">
+            <button class="btn small" data-console-view="terminal">Terminal</button>
+            <button class="btn small" data-console-view="activity">Raw activity</button>
+            <button class="btn small" data-console-view="result">Result</button>
+            <button id="clearAgentActivity" class="btn small">Clear activity</button>
+          </div>
+        </div>
+      </details>
+    </nav>
+    <div class="console-workspace">
+      <section id="agentConsoleConversationView" class="console-view agent-conversation-view">
+        <div id="agentProgressPanel" class="agent-progress-panel" aria-live="polite">
+          <div class="agent-progress-main"><span id="agentProgressState" class="agent-progress-state">Waiting</span><strong id="agentProgressActivity">Select a live agent session</strong><code id="agentProgressTarget"></code></div>
+          <div id="agentProgressStats" class="agent-progress-stats"></div>
+          <div id="agentProgressWarning" class="agent-progress-warning hidden"></div>
+        </div>
+        <div id="agentConversationOutput" class="agent-conversation" role="log" aria-live="polite"><div class="console-empty">Select a live agent session.</div></div>
+      </section>
+      <section id="agentConsoleChangesView" class="console-view hidden">
+        <div class="agent-changes-layout">
+          <section class="agent-change-panel"><header>Plan</header><div id="agentPlanOutput" class="agent-plan"><div class="console-empty">No plan updates yet.</div></div></section>
+          <section class="agent-change-panel"><header>Working diff</header><pre id="agentDiffOutput" class="agent-diff">No live diff available.</pre></section>
+        </div>
+      </section>
+      <section id="agentConsoleTerminalView" class="console-view hidden">
+        <div id="agentTerminalSurface" class="terminal-surface">
+          <pre id="agentTerminalScreen" class="terminal-screen" tabindex="0">Select an agent terminal.</pre>
+          <textarea id="agentTerminalKeySink" class="terminal-key-sink" rows="1" aria-label="Agent terminal keyboard input" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+          <div id="agentTerminalFocusHint" class="terminal-focus-hint">Click the terminal to type</div>
+        </div>
+      </section>
+      <section id="agentConsoleActivityView" class="console-view hidden"><div id="agentActivityOutput" class="console-output"><span class="console-empty">No captured activity.</span></div></section>
+      <section id="agentConsoleResultView" class="console-view hidden"><pre id="agentArtifactOutput" class="artifact-output">Select Result to load the durable artifact.</pre></section>
+    </div>
+    <div id="agentReadOnlyNotice" class="console-readonly hidden"><span>This terminal session is read-only until operator input is explicitly enabled.</span></div>
+    <section id="agentInputDock" class="console-input-dock hidden">
+      <div class="console-composer"><textarea id="agentTerminalInput" rows="2" placeholder="Steer the running agent… Enter sends, Shift+Enter adds a line"></textarea><button id="interruptAgentTurn" class="btn danger hidden" title="Interrupt the current agent turn">Interrupt</button><button id="sendAgentTerminalInput" class="btn primary">Steer agent</button></div>
+      <details id="agentTerminalTools" class="console-terminal-tools">
+        <summary>Terminal controls</summary>
+        <div class="console-input-tools">
+          <label><input id="directAgentKeyboard" type="checkbox"> Terminal keys</label>
+          <span id="agentTerminalInputState">Click the terminal to activate keyboard input.</span>
+          <button id="focusAgentTerminal" class="btn small">Focus terminal</button>
+          <button class="btn small terminal-key-button" data-terminal-key="ArrowUp" title="Send Arrow Up">↑</button>
+          <button class="btn small terminal-key-button" data-terminal-key="ArrowDown" title="Send Arrow Down">↓</button>
+          <button class="btn small terminal-key-button" data-terminal-key="Tab">Tab</button>
+          <button class="btn small terminal-key-button" data-terminal-key="Escape">Esc</button>
+          <button class="btn small primary terminal-key-button" data-terminal-key="Enter">Enter</button>
+          <button id="interruptAgentTerminal" class="btn small danger">Ctrl-C</button>
+          <button id="eofAgentTerminal" class="btn small">Ctrl-D</button>
+          <button id="detachAgentTerminal" class="btn small">Disable input</button>
+        </div>
+      </details>
+    </section>
+    <footer class="console-statusbar"><span id="agentConsoleMeta">No agent session selected.</span><span id="agentConsoleControlHint">Controls are bounded and audit-logged.</span></footer>
+  </section>
+</aside>
+<aside id="workPackageInspector" class="work-package-inspector" role="region" aria-labelledby="workPackageInspectorTitle" aria-hidden="true" hidden>
+  <header class="work-package-inspector-header">
+    <div><span class="eyebrow">Work Package</span><h2 id="workPackageInspectorTitle" tabindex="-1">Work Package details</h2><p id="workPackageInspectorMeta">Select a Work Package to inspect its durable execution state.</p></div>
+    <button id="closeWorkPackageInspector" class="icon-btn" type="button" aria-label="Close Work Package details">×</button>
+  </header>
+  <div id="workPackageQuickActions" class="work-package-quick-actions" aria-label="Work Package actions">
+    <button id="decomposeBtn" class="btn">Decompose</button>
+    <button id="pauseWorkPackageBtn" class="btn">Pause</button>
+    <button id="syncWorkPackageBtn" class="btn">Pause & Sync</button>
+    <button id="openWorkPackageAgentBtn" class="btn" disabled>Open agent</button>
+  </div>
+  <div id="workPackageInspectorTabs" class="work-package-inspector-tabs" role="tablist" aria-label="Work Package details sections">
+    <button id="workPackageOverviewTab" type="button" role="tab" aria-controls="workPackageOverviewPanel" aria-selected="true" data-work-package-inspector-tab="overview">Overview</button>
+    <button id="workPackageExecutionTab" type="button" role="tab" aria-controls="workPackageExecutionPanel" aria-selected="false" tabindex="-1" data-work-package-inspector-tab="execution">Execution</button>
+    <button id="workPackageEvidenceTab" type="button" role="tab" aria-controls="workPackageEvidencePanel" aria-selected="false" tabindex="-1" data-work-package-inspector-tab="evidence">Evidence</button>
+  </div>
+  <div id="packageDetail" class="detail-body empty" tabindex="-1">Select a Work Package.</div>
+</aside>
+<dialog id="workPackageSyncDialog" class="work-package-sync-dialog" aria-labelledby="workPackageSyncTitle">
+  <div class="work-package-sync-shell">
+    <header><div><span class="eyebrow">Repository synchronization</span><h2 id="workPackageSyncTitle">Pause & Sync</h2><p id="workPackageSyncSubtitle">Choose the upstream branches to merge at the next safe Work Package boundary.</p></div><button id="closeWorkPackageSyncDialog" class="icon-btn" aria-label="Close repository synchronization">×</button></header>
+    <div id="workPackageSyncNotice" class="message">Target branches are fixed by TASK.yaml. Only upstream source branches are selectable.</div>
+    <div class="work-package-sync-toolbar">
+      <button id="refreshWorkPackageSyncBranches" class="btn small" type="button">Refresh remote branches</button>
+      <button id="previewWorkPackageSync" class="btn small" type="button">Preview divergence</button>
+      <label>Conflict handling <select id="workPackageSyncConflictPolicy"><option value="ai_resolve">AI resolve + independent review</option><option value="human">Stop for human resolution</option></select></label>
+    </div>
+    <div id="workPackageSyncRepositories" class="work-package-sync-repositories"><div class="empty">Loading repositories…</div></div>
+    <div id="workPackageSyncPreview" class="work-package-sync-preview empty">Preview selected branch divergence before confirming.</div>
+    <label class="work-package-sync-resume"><input id="workPackageSyncAutoResume" type="checkbox" checked> Resume development automatically after synchronization succeeds</label>
+    <div class="dialog-actions"><button id="confirmWorkPackageSync" class="btn primary" type="button">Pause & Sync</button><button id="cancelWorkPackageSync" class="btn" type="button">Cancel</button></div>
+  </div>
+</dialog>
+<dialog id="scopeApprovalDialog" class="scope-approval-dialog" aria-labelledby="scopeApprovalTitle">
+  <div class="scope-approval-shell">
+    <header><div><span class="eyebrow">Protected workspace scope</span><h2 id="scopeApprovalTitle">Approve exact scope</h2><p id="scopeApprovalSubtitle">Loading the authoritative candidate set…</p></div><button id="closeScopeApproval" class="icon-btn" type="button" aria-label="Close protected scope approval">×</button></header>
+    <div class="scope-approval-body">
+      <div class="message warn"><strong>Operator authorization required.</strong> The Supervisor cannot grant itself access to protected paths. Approval adds only the exact current candidates shown below, then resumes verification.</div>
+      <div id="scopeApprovalReason" class="scope-approval-reason"></div>
+      <div><span class="eyebrow">Paths to acquire</span><div id="scopeApprovalPaths" class="scope-approval-paths"><div class="empty">Loading…</div></div></div>
+    </div>
+    <div class="dialog-actions"><button id="confirmScopeApproval" class="btn primary" type="button" disabled>Approve scope &amp; resume</button><button id="cancelScopeApproval" class="btn" type="button">Cancel</button></div>
+  </div>
+</dialog>
+<dialog id="operatorAcceptanceDialog" class="operator-acceptance-dialog" aria-labelledby="operatorAcceptanceTitle">
+  <div class="operator-acceptance-shell">
+    <header><div><span class="eyebrow">Explicit operator disposition</span><h2 id="operatorAcceptanceTitle">Accept deferred risk</h2><p id="operatorAcceptanceSubtitle">Review the exact blocking check before continuing.</p></div><button id="closeOperatorAcceptance" class="icon-btn" type="button" aria-label="Close operator acceptance">×</button></header>
+    <div class="operator-acceptance-body">
+      <div class="message warn"><strong>This is not a verification pass.</strong> The reviewer findings and any deferred acceptance criteria remain recorded as unverified. This action only authorizes this Work Package to finish with an explicit operator-accepted risk.</div>
+      <section><span class="eyebrow">Blocking requirement</span><div id="operatorAcceptanceRequirement" class="operator-acceptance-text"></div></section>
+      <section><span class="eyebrow">Reviewer / check evidence</span><div id="operatorAcceptanceEvidence" class="operator-acceptance-list"><div class="empty">Loading…</div></div></section>
+      <section><span class="eyebrow">Unverified criteria covered by this decision</span><div id="operatorAcceptanceCriteria" class="operator-acceptance-list"><div class="empty">Loading…</div></div></section>
+      <label class="operator-acceptance-reason">Reason for accepting this risk<textarea id="operatorAcceptanceReason" rows="4" maxlength="4000" placeholder="Example: Real Gazebo/PX4 acceptance is deferred to the host validation campaign; accept the current software implementation and continue."></textarea></label>
+      <label class="operator-acceptance-check"><input id="operatorAcceptanceAcknowledge" type="checkbox"><span><strong>I understand these items remain unverified</strong><small>The decision is package-scoped, audit-logged, and does not rewrite failed or missing evidence as passed.</small></span></label>
+    </div>
+    <div class="dialog-actions"><button id="confirmOperatorAcceptance" class="btn warn" type="button" disabled>Accept risk &amp; continue</button><button id="cancelOperatorAcceptance" class="btn" type="button">Cancel</button></div>
+  </div>
+</dialog>
+<dialog id="providerPromotionDialog" class="provider-promotion-dialog" aria-labelledby="providerPromotionTitle">
+  <div class="provider-promotion-shell">
+    <header><div><span class="eyebrow">Agent execution policy</span><h2 id="providerPromotionTitle">Temporary promotion</h2><p id="providerPromotionSubtitle">Raise complexity eligibility for this task without changing agent weights or static configuration.</p></div><button id="closeProviderPromotion" class="icon-btn" type="button" aria-label="Close agent promotion">×</button></header>
+    <div class="provider-promotion-body">
+      <div class="message warn"><strong>Temporary quality-policy override.</strong> Promotions expire automatically, remain task-scoped, and are fallback-only by default. They do not modify capability weights or <code>agents.yaml</code>.</div>
+      <div><span class="eyebrow">Capabilities</span><div id="providerPromotionCapabilities" class="promotion-capabilities"></div></div>
+      <div class="promotion-form-grid">
+        <label>Temporary ceiling<input id="providerPromotionCeiling" type="number" min="1" max="100" step="1" value="100"></label>
+        <label>Duration<select id="providerPromotionDuration"><option value="1800">30 minutes</option><option value="3600">1 hour</option><option value="7200">2 hours</option><option value="14400" selected>4 hours</option><option value="28800">8 hours</option><option value="86400">24 hours</option></select></label>
+        <label>Scope<select id="providerPromotionPackage"><option value="">Entire current task</option></select></label>
+      </div>
+      <label class="promotion-check"><input id="providerPromotionFallbackOnly" type="checkbox" checked><span><strong>Fallback only</strong><small>Use the raised ceiling only after normally eligible agent profiles are exhausted.</small></span></label>
+      <label class="promotion-check"><input id="providerPromotionFinalReview" type="checkbox"><span><strong>Allow final review</strong><small>Explicitly permit a promoted review ceiling to cross the final-review quality check.</small></span></label>
+      <label class="promotion-reason">Reason<input id="providerPromotionReason" type="text" maxlength="500" value="Preferred agent temporarily unavailable" placeholder="Why is this agent-profile promotion needed?"></label>
+      <div id="providerPromotionCurrent" class="provider-promotion-current empty">No active promotion.</div>
+    </div>
+    <div class="dialog-actions"><button id="revokeProviderPromotion" class="btn danger" type="button">Revoke active</button><button id="applyProviderPromotion" class="btn primary" type="button">Apply promotion</button><button id="cancelProviderPromotion" class="btn" type="button">Cancel</button></div>
+  </div>
+</dialog>
+<dialog id="commandPalette" class="command-palette" aria-labelledby="commandPaletteTitle">
+  <form method="dialog">
+    <header><div><span class="eyebrow">Quick actions</span><h2 id="commandPaletteTitle">Command palette</h2></div><button class="icon-btn" value="cancel" aria-label="Close command palette">×</button></header>
+    <input id="commandSearch" type="search" autocomplete="off" placeholder="Search actions…" aria-label="Search commands">
+    <div id="commandList" class="command-list" role="listbox"></div>
+    <footer><span>↑↓ navigate · Enter run · Esc close</span><kbd>Ctrl/⌘ K</kbd></footer>
+  </form>
+</dialog>
+<dialog id="taskLaunchDialog" class="task-launch-dialog" aria-labelledby="taskLaunchTitle">
+  <form method="dialog">
+    <header><div><span class="eyebrow">Task quick open</span><h2 id="taskLaunchTitle">Open another task</h2></div><button class="icon-btn" value="cancel" aria-label="Close task launcher">×</button></header>
+    <p>This dashboard remains bound to its current task so process ownership and mutations cannot cross task boundaries. Run this command in another terminal:</p>
+    <code id="taskLaunchCommand"></code>
+    <div class="dialog-actions"><button id="copyTaskLaunchCommand" class="btn primary" type="button">Copy command</button><button class="btn" value="cancel">Cancel</button></div>
+  </form>
+</dialog>
+<dialog id="taskReviewDialog" class="task-review-dialog" aria-labelledby="taskReviewTitle">
+  <div class="task-review-shell">
+    <header><div><span class="eyebrow">Task review</span><h2 id="taskReviewTitle">Task</h2><p id="taskReviewSubtitle"></p></div><button id="closeTaskReview" class="icon-btn" aria-label="Close task review">×</button></header>
+    <div class="task-review-actions"><button id="openReviewedTask" class="btn primary">Open workbench</button><button id="resumeReviewedTask" class="btn hidden">Resume start</button></div>
+    <section><h3>Brief</h3><pre id="taskReviewBrief" class="document-preview"></pre></section>
+    <section><h3>Executable plan</h3><div id="taskReviewPlan" class="plan-review"></div></section>
+    <section><h3>Start journal</h3><div id="taskReviewJournal" class="journal-review"></div></section>
+  </div>
+</dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<script type="module" src="/assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+# Python bytecode and test/tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.hypothesis/
+
+# Packaging and build output
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+
+# Execraft generated state, cache, logs and bundles
+.execraft/
+.execraft-state/
+runs/
+logs/
+*.log
+*.bundle.tar.gz
+*.bundle.zip
+
+# Host-local control-plane registries and task dossiers
+/.registry/
+/projects/*/tasks/
+/projects/.archive/tasks/
+
+# Generated workspace-shell files when rendering into this checkout
+/.agents/
+/.claude/
+/.codex/
+/.opencode/
+/.vscode/
+/AGENTS.md
+/CLAUDE.md
+/opencode.json
+/*.code-workspace
+/.ai-task.env
+/.ai-workspace/
+
+# Local project path bindings must never be committed
+project-bindings.local.yaml
+bindings.local.yaml
+
+# ROS/colcon output when Execraft is used as a local test fixture
+/build/
+/install/
+/log/
+
+# Editors and operating systems
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Runtime lock for the reversible catalog archive
+/projects/.archive/.catalog.lock
