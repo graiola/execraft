@@ -184,7 +184,13 @@ export class ExecutionHealthView {
   open({ focus = true } = {}) {
     if (this.isOpen()) return;
     this.pagePosition = { x: window.scrollX, y: window.scrollY };
-    this.lastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : this.openButton;
+    const active = document.activeElement;
+    this.lastTrigger =
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      active !== document.documentElement
+        ? active
+        : this.openButton;
     this.drawer.hidden = false;
     this.drawer.classList.add("open");
     this.openButton.setAttribute("aria-expanded", "true");
