@@ -1076,7 +1076,10 @@ def test_execution_health_is_compact_lane_first_and_profiles_are_advanced(page):
         assert page.locator("#assignmentRows").count() == 0
 
         opener = page.locator("#executionHealthDrawerOpen")
-        opener.click()
+        # Dispatch the application click without Playwright first scrolling an
+        # off-screen trigger into view; this test measures Execraft scroll
+        # preservation, not locator.click() geometry assistance.
+        opener.evaluate("node => node.click()")
         page.locator("#executionHealthDrawer").wait_for()
         # Group titles are rendered uppercase by the drawer stylesheet.
         assert page.locator("#executionHealthActiveTitle").inner_text() == "ACTIVE"
@@ -1327,7 +1330,9 @@ def test_selecting_work_package_does_not_recenter_workflow_viewport(page):
         _reveal_work_package_card(page, "F")
         before = _workflow_viewport_position(page)
 
-        page.locator('[data-work-package-action="select"][data-id="F"]').click()
+        page.locator('[data-work-package-action="select"][data-id="F"]').evaluate(
+            "node => node.click()"
+        )
         page.wait_for_timeout(250)
         after = _workflow_viewport_position(page)
 
@@ -1339,7 +1344,9 @@ def test_dashboard_refresh_preserves_selected_work_package_viewport(page):
     with dashboard_fixture_server(DENSE_WORKFLOW_SNAPSHOT) as url:
         page.goto(url)
         page.locator("#workflowWrap").wait_for()
-        page.locator('[data-work-package-action="select"][data-id="F"]').click()
+        page.locator('[data-work-package-action="select"][data-id="F"]').evaluate(
+            "node => node.click()"
+        )
         page.locator("#workPackageInspector").wait_for(state="visible")
         # Selection opens the overlay inspector, which covers the viewport
         # toolbar on narrow screens. Close it before exercising zoom.
