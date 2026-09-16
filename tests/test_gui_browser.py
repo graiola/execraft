@@ -621,13 +621,18 @@ def test_action_center_quick_open_and_keyboard_tabs(page):
 
         assert "WP1 is implement" in page.locator("#actionCenterTitle").inner_text()
         assert "codex · implement" in page.locator("#actionDetailsSummary").inner_text()
-        assert page.locator("#workflowList").is_visible()
-        assert page.locator("#workflowGraphView").is_hidden()
+        assert page.locator("#workflowGraphView").is_visible()
+        assert page.locator("#workflowList").is_hidden()
         assert page.locator("#supervisorPanel").is_hidden()
         page.wait_for_function("document.querySelector('#taskPicker').options.length === 3")
         assert page.locator("#taskPicker option").count() == 3
 
         page.locator("#runTab").focus()
+        page.keyboard.press("ArrowRight")
+        # Primary views are ordered Run, Agents, Plan, Changes.
+        assert page.locator("#agentsTab").get_attribute("aria-selected") == "true"
+        assert page.locator("#agentsView").is_visible()
+
         page.keyboard.press("ArrowRight")
         assert page.locator("#planTab").get_attribute("aria-selected") == "true"
         assert page.locator("#planView").is_visible()
@@ -707,7 +712,7 @@ def test_human_required_control_hold_is_not_rendered_as_driver_crash(page):
         assert "bad" not in (page.locator("#runMessage").get_attribute("class") or "").split()
 
 
-def test_polling_does_not_rebuild_assignment_picker_or_lose_pending_choice(page):
+def test_polling_does_not_rebuild_routing_picker_or_lose_pending_choice(page):
     snapshot = copy.deepcopy(SNAPSHOT)
     snapshot["mode"] = "task"
     snapshot["run"].update({"owned_running": False, "external_running": False, "pid": None})
@@ -802,13 +807,20 @@ def test_polling_does_not_rebuild_assignment_picker_or_lose_pending_choice(page)
 
     with dashboard_fixture_server(snapshot) as url:
         page.goto(url)
-        page.locator('[data-work-package-action="assignment"][data-id="WP1"]').click()
+        # The Graph card Execution shortcut opens the inspector routing editor
+        # (the old dedicated assignment action no longer exists).
+        page.locator(
+            '#workflowGraphView [data-work-package-action="execution"][data-id="WP1"]'
+        ).click()
         picker = page.locator("[data-lane-select]")
         picker.wait_for(state="visible")
+        # The draft starts in Automatic routing, which disables the lane pick;
+        # choose Prefer so an explicit lane becomes an editable pending choice.
+        page.locator("[data-lane-mode]").select_option("prefer")
+        picker.wait_for(state="visible")
         page.evaluate(
-            "window.__assignmentPicker = document.querySelector('[data-lane-select]')"
+            "window.__routingPicker = document.querySelector('[data-lane-select]')"
         )
-        picker.focus()
         picker.select_option("lane-qwen-gpu")
 
         # Cross a full dashboard polling interval. Active form interaction must
@@ -817,7 +829,7 @@ def test_polling_does_not_rebuild_assignment_picker_or_lose_pending_choice(page)
 
         assert picker.input_value() == "lane-qwen-gpu"
         assert page.evaluate(
-            "window.__assignmentPicker === document.querySelector('[data-lane-select]')"
+            "window.__routingPicker === document.querySelector('[data-lane-select]')"
         )
 
 
@@ -980,6 +992,9 @@ def test_diagnostics_explain_tokens_and_logs_show_orchestrator_state_machine(pag
         page.goto(url)
         page.locator("#executionHealthDrawerOpen").click()
         page.locator("#executionHealthDrawer").wait_for()
+        # Token/capacity metrics live behind the collapsed metrics disclosure.
+        page.locator(".execution-health-metrics > summary").click()
+        page.wait_for_timeout(100)
 
         assert page.locator("#mTokens").inner_text() == "24.9M processed"
         breakdown = page.locator("#mTokensBreakdown").inner_text()
@@ -988,6 +1003,9 @@ def test_diagnostics_explain_tokens_and_logs_show_orchestrator_state_machine(pag
         assert "22.7M cache reads" in breakdown
         assert "9,585 reasoning" in breakdown
 
+        # The drawer overlays the workbench; close it before using the More menu.
+        page.locator("#executionHealthDrawerClose").click()
+        page.locator("#executionHealthDrawer").wait_for(state="hidden")
         page.locator("#taskMoreMenu summary").click()
         page.locator('[data-utility-view="logs"]').click()
         page.locator("#orchestratorStateMachine").wait_for()
@@ -1060,14 +1078,19 @@ def test_execution_health_is_compact_lane_first_and_profiles_are_advanced(page):
         opener = page.locator("#executionHealthDrawerOpen")
         opener.click()
         page.locator("#executionHealthDrawer").wait_for()
-        assert page.locator("#executionHealthActiveTitle").inner_text() == "Active"
+        # Group titles are rendered uppercase by the drawer stylesheet.
+        assert page.locator("#executionHealthActiveTitle").inner_text() == "ACTIVE"
         assert "WP1" in page.locator("#executionHealthOverview").inner_text()
         assert "GPT local" in page.locator("#executionHealthOverview").inner_text()
         assert page.locator("#executionProfileMaintenance").get_attribute("open") is None
         assert page.locator("#agentList").inner_text() == ""
 
         page.locator("#executionProfileMaintenance > summary").click()
-        assert "codex" in page.locator("#agentList").inner_text()
+        # The details toggle event renders the profile list asynchronously.
+        page.wait_for_function(
+            "() => (document.querySelector('#agentList')?.innerText || '').includes('codex')"
+        )
+        assert "Doctor test" in page.locator("#agentList").inner_text()
         assert "Doctor test" in page.locator("#agentList").inner_text()
 
 
@@ -1229,7 +1252,7 @@ def test_dense_workflow_uses_shared_buses_straight_routes_and_local_focus(page):
     page.set_viewport_size({"width": 700, "height": 620})
     with dashboard_fixture_server(DENSE_WORKFLOW_SNAPSHOT) as url:
         page.goto(url)
-        page.locator('[data-workflow-view="graph"]').click()
+        # Graph is the first-use default; loading it must not scroll the page.
         page.locator("#workflowWrap").wait_for()
         page.wait_for_timeout(500)
 
@@ -1269,6 +1292,24 @@ def _workflow_viewport_position(page):
     )
 
 
+def _reveal_work_package_card(page, package_id):
+    """Center a Work Package card in the document and graph scroll views.
+
+    Playwright and native focus handling both auto-scroll for clipped targets;
+    centering the card first keeps any later scroll movement attributable to
+    the application rather than to synthesized click mechanics.
+    """
+    page.evaluate(
+        """(packageId) => {
+          const card = document.querySelector(
+            `[data-work-package-action="select"][data-id="${packageId}"]`,
+          );
+          card.scrollIntoView({block: "center", inline: "center", behavior: "auto"});
+        }""",
+        package_id,
+    )
+
+
 def test_selecting_work_package_does_not_recenter_workflow_viewport(page):
     page.set_viewport_size({"width": 700, "height": 620})
     with dashboard_fixture_server(DENSE_WORKFLOW_SNAPSHOT) as url:
@@ -1283,6 +1324,7 @@ def test_selecting_work_package_does_not_recenter_workflow_viewport(page):
               node.scrollTo({left: 40, top: 25, behavior: 'auto'});
             }"""
         )
+        _reveal_work_package_card(page, "F")
         before = _workflow_viewport_position(page)
 
         page.locator('[data-work-package-action="select"][data-id="F"]').click()
@@ -1298,6 +1340,12 @@ def test_dashboard_refresh_preserves_selected_work_package_viewport(page):
         page.goto(url)
         page.locator("#workflowWrap").wait_for()
         page.locator('[data-work-package-action="select"][data-id="F"]').click()
+        page.locator("#workPackageInspector").wait_for(state="visible")
+        # Selection opens the overlay inspector, which covers the viewport
+        # toolbar on narrow screens. Close it before exercising zoom.
+        page.locator("#closeWorkPackageInspector").click()
+        page.locator("#workPackageInspector").wait_for(state="hidden")
+        page.evaluate("window.scrollTo(0, 0)")
         for _ in range(3):
             page.locator('[data-workflow-viewport-action="zoom-in"]').click()
         page.evaluate(
@@ -1329,6 +1377,7 @@ def test_work_package_inspector_close_preserves_viewport_and_focuses_workbench(p
               node.scrollTo({left: 45, top: 20, behavior: 'auto'});
             }"""
         )
+        _reveal_work_package_card(page, "F")
         before = _workflow_viewport_position(page)
 
         page.locator('[data-work-package-action="select"][data-id="F"]').click()
@@ -1427,18 +1476,43 @@ def test_follow_active_navigates_once_per_primary_transition(page):
         assert page.evaluate("window.__workflowLocateCount") == 1
 
 
+def _workflow_visible_point(page):
+    """Return a viewport coordinate that lies over the graph surface."""
+    return page.evaluate(
+        """() => {
+          const wrap = document.querySelector('#workflowWrap');
+          const topbar = document.querySelector('header.topbar');
+          const rect = wrap.getBoundingClientRect();
+          const topLimit = topbar.getBoundingClientRect().bottom + 20;
+          const bottomLimit = window.innerHeight - 20;
+          if (rect.top >= bottomLimit || rect.bottom <= topLimit) return null;
+          const y = Math.min(Math.max(rect.top + 40, topLimit), bottomLimit);
+          const x = rect.left + Math.min(rect.width / 2, 120);
+          return {x, y};
+        }"""
+    )
+
+
 def test_graph_vertical_wheel_scrolls_page_and_shift_wheel_pans_graph(page):
     page.set_viewport_size({"width": 700, "height": 620})
     with dashboard_fixture_server(DENSE_WORKFLOW_SNAPSHOT) as url:
         page.goto(url)
         viewport = page.locator("#workflowWrap")
         viewport.wait_for()
-        viewport.scroll_into_view_if_needed()
+        page.evaluate(
+            """() => {
+              const wrap = document.querySelector('#workflowWrap');
+              const top = wrap.getBoundingClientRect().top + window.scrollY;
+              window.scrollTo(0, Math.max(0, top - 200));
+            }"""
+        )
         page.wait_for_timeout(100)
 
+        point = _workflow_visible_point(page)
+        assert point is not None
+        page.mouse.move(point["x"], point["y"])
         before_page = page.evaluate("window.scrollY")
         before_top = page.evaluate("document.querySelector('#workflowWrap').scrollTop")
-        viewport.hover()
         page.mouse.wheel(0, 260)
         page.wait_for_timeout(100)
         assert page.evaluate("window.scrollY") > before_page
@@ -1449,7 +1523,9 @@ def test_graph_vertical_wheel_scrolls_page_and_shift_wheel_pans_graph(page):
         page.evaluate("document.querySelector('#workflowWrap').scrollLeft = 40")
         before_left = page.evaluate("document.querySelector('#workflowWrap').scrollLeft")
         before_page = page.evaluate("window.scrollY")
-        viewport.hover()
+        point = _workflow_visible_point(page)
+        assert point is not None
+        page.mouse.move(point["x"], point["y"])
         page.keyboard.down("Shift")
         page.mouse.wheel(0, 180)
         page.keyboard.up("Shift")
@@ -1457,7 +1533,6 @@ def test_graph_vertical_wheel_scrolls_page_and_shift_wheel_pans_graph(page):
 
         assert page.evaluate("document.querySelector('#workflowWrap').scrollLeft") > before_left
         assert page.evaluate("window.scrollY") == before_page
-
 
 def test_work_package_details_and_execution_shortcut_share_inspector(page):
     snapshot = copy.deepcopy(SNAPSHOT)
@@ -1476,7 +1551,11 @@ def test_work_package_details_and_execution_shortcut_share_inspector(page):
         page.locator("#workPackageInspector").wait_for(state="hidden")
 
         page.locator('[data-workflow-view="graph"]').click()
-        assignment = page.locator('[data-work-package-action="execution"][data-id="WP1"]')
+        # The same Execution action exists in the hidden List projection;
+        # scope to the Graph card that is actually visible.
+        assignment = page.locator(
+            '#workflowGraphView [data-work-package-action="execution"][data-id="WP1"]'
+        )
         assignment.click()
         page.locator("#workPackageInspector").wait_for(state="visible")
         assert page.locator("#workPackageExecutionTab").get_attribute("aria-selected") == "true"

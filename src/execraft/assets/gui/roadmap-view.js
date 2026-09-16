@@ -803,9 +803,13 @@ export class RoadmapView {
     if (active?.matches?.(`[data-roadmap-primary="${escaped}"]`)) focusSelector = `[data-roadmap-primary="${escaped}"]`;
     else if (active?.matches?.(`[data-roadmap-edit="${escaped}"]`)) focusSelector = `[data-roadmap-edit="${escaped}"]`;
     else if (active?.closest?.(`[data-roadmap-item="${escaped}"]`)) focusSelector = `[data-roadmap-item="${escaped}"]`;
+    // Re-selecting the already selected item keeps the canvas nodes in place.
+    // Replacing them on every click would prevent the browser from ever
+    // synthesizing the dblclick gesture that opens a canonical Task.
+    const unchanged = this.selectedItemId === itemId && !this.selectedRelationKey;
     this.selectedItemId = itemId;
     this.selectedRelationKey = "";
-    this.#renderTimeline();
+    if (!unchanged) this.#renderTimeline();
     this.#renderInspector();
     if (focusSelector) queueMicrotask(() => document.querySelector(focusSelector)?.focus({ preventScroll: true }));
   }
