@@ -53,6 +53,12 @@ It is designed for projects where an AI coding assistant is useful, but an opaqu
       <img src="docs/assets/project-execution.png" alt="Execraft Project Execution interface">
     </td>
   </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <strong>Task execution graph</strong><br><br>
+      <img src="docs/assets/task-graph.png" alt="Execraft Work Package task execution graph">
+    </td>
+  </tr>
 </table>
 
 The Roadmap is a planning/view surface. Project Execution owns canonical project-level
