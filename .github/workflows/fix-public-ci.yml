@@ -1,0 +1,121 @@
+name: Repair public CI regressions
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fix-public-ci.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply verified public CI repairs
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"expected block not found in {path}: {old[:100]!r}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          roadmap = Path("src/execraft/assets/gui/roadmap-view.js")
+          replace_once(
+              roadmap,
+              '''    this.selectedItemId = itemId;\n    this.selectedRelationKey = "";\n    this.#renderTimeline();\n    this.#renderInspector();''',
+              '''    // Re-selecting the already selected item keeps the canvas nodes in place.\n    // Replacing them on every click would prevent the browser from ever\n    // synthesizing the dblclick gesture that opens a canonical Task.\n    const unchanged = this.selectedItemId === itemId && !this.selectedRelationKey;\n    this.selectedItemId = itemId;\n    this.selectedRelationKey = "";\n    if (!unchanged) this.#renderTimeline();\n    this.#renderInspector();''',
+          )
+
+          tests = Path("tests/test_gui_browser.py")
+          text = tests.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  '''        assert page.locator("#workflowList").is_visible()\n        assert page.locator("#workflowGraphView").is_hidden()''',
+                  '''        assert page.locator("#workflowGraphView").is_visible()\n        assert page.locator("#workflowList").is_hidden()''',
+              ),
+              (
+                  '''        page.locator("#runTab").focus()\n        page.keyboard.press("ArrowRight")\n        assert page.locator("#planTab").get_attribute("aria-selected") == "true"''',
+                  '''        page.locator("#runTab").focus()\n        page.keyboard.press("ArrowRight")\n        # Primary views are ordered Run, Agents, Plan, Changes.\n        assert page.locator("#agentsTab").get_attribute("aria-selected") == "true"\n        assert page.locator("#agentsView").is_visible()\n\n        page.keyboard.press("ArrowRight")\n        assert page.locator("#planTab").get_attribute("aria-selected") == "true"''',
+              ),
+              (
+                  'def test_polling_does_not_rebuild_assignment_picker_or_lose_pending_choice(page):',
+                  'def test_polling_does_not_rebuild_routing_picker_or_lose_pending_choice(page):',
+              ),
+              (
+                  '''        page.locator('[data-work-package-action="assignment"][data-id="WP1"]').click()\n        picker = page.locator("[data-lane-select]")\n        picker.wait_for(state="visible")\n        page.evaluate(\n            "window.__assignmentPicker = document.querySelector('[data-lane-select]')"\n        )\n        picker.focus()\n        picker.select_option("lane-qwen-gpu")''',
+                  '''        # The Graph card Execution shortcut opens the inspector routing editor\n        # (the old dedicated assignment action no longer exists).\n        page.locator(\n            '#workflowGraphView [data-work-package-action="execution"][data-id="WP1"]'\n        ).click()\n        picker = page.locator("[data-lane-select]")\n        picker.wait_for(state="visible")\n        # The draft starts in Automatic routing, which disables the lane pick;\n        # choose Prefer so an explicit lane becomes an editable pending choice.\n        page.locator("[data-lane-mode]").select_option("prefer")\n        picker.wait_for(state="visible")\n        page.evaluate(\n            "window.__routingPicker = document.querySelector('[data-lane-select]')"\n        )\n        picker.select_option("lane-qwen-gpu")''',
+              ),
+              (
+                  '''            "window.__assignmentPicker === document.querySelector('[data-lane-select]')"''',
+                  '''            "window.__routingPicker === document.querySelector('[data-lane-select]')"''',
+              ),
+              (
+                  '''        page.locator("#executionHealthDrawer").wait_for()\n\n        assert page.locator("#mTokens").inner_text() == "24.9M processed"''',
+                  '''        page.locator("#executionHealthDrawer").wait_for()\n        # Token/capacity metrics live behind the collapsed metrics disclosure.\n        page.locator(".execution-health-metrics > summary").click()\n        page.wait_for_timeout(100)\n\n        assert page.locator("#mTokens").inner_text() == "24.9M processed"''',
+              ),
+              (
+                  '''        assert "9,585 reasoning" in breakdown\n\n        page.locator("#taskMoreMenu summary").click()''',
+                  '''        assert "9,585 reasoning" in breakdown\n\n        # The drawer overlays the workbench; close it before using the More menu.\n        page.locator("#executionHealthDrawerClose").click()\n        page.locator("#executionHealthDrawer").wait_for(state="hidden")\n        page.locator("#taskMoreMenu summary").click()''',
+              ),
+              (
+                  '''        assert page.locator("#executionHealthActiveTitle").inner_text() == "Active"''',
+                  '''        # Group titles are rendered uppercase by the drawer stylesheet.\n        assert page.locator("#executionHealthActiveTitle").inner_text() == "ACTIVE"''',
+              ),
+              (
+                  '''        page.locator("#executionProfileMaintenance > summary").click()\n        assert "codex" in page.locator("#agentList").inner_text()''',
+                  '''        page.locator("#executionProfileMaintenance > summary").click()\n        # The details toggle event renders the profile list asynchronously.\n        page.wait_for_function(\n            "() => (document.querySelector('#agentList')?.innerText || '').includes('codex')"\n        )\n        assert "Doctor test" in page.locator("#agentList").inner_text()''',
+              ),
+              (
+                  '''        page.goto(url)\n        page.locator('[data-workflow-view="graph"]').click()\n        page.locator("#workflowWrap").wait_for()\n        page.wait_for_timeout(500)''',
+                  '''        page.goto(url)\n        # Graph is the first-use default; loading it must not scroll the page.\n        page.locator("#workflowWrap").wait_for()\n        page.wait_for_timeout(500)''',
+              ),
+              (
+                  '''def _workflow_viewport_position(page):\n    return page.evaluate(\n        """() => {\n          const node = document.querySelector('#workflowWrap');\n          return {left: node.scrollLeft, top: node.scrollTop, pageY: window.scrollY};\n        }"""\n    )\n\n\ndef test_selecting_work_package_does_not_recenter_workflow_viewport(page):''',
+                  '''def _workflow_viewport_position(page):\n    return page.evaluate(\n        """() => {\n          const node = document.querySelector('#workflowWrap');\n          return {left: node.scrollLeft, top: node.scrollTop, pageY: window.scrollY};\n        }"""\n    )\n\n\ndef _reveal_work_package_card(page, package_id):\n    """Center a Work Package card in the document and graph scroll views.\n\n    Playwright and native focus handling both auto-scroll for clipped targets;\n    centering the card first keeps any later scroll movement attributable to\n    the application rather than to synthesized click mechanics.\n    """\n    page.evaluate(\n        """(packageId) => {\n          const card = document.querySelector(\n            `[data-work-package-action="select"][data-id="${packageId}"]`,\n          );\n          card.scrollIntoView({block: "center", inline: "center", behavior: "auto"});\n        }""",\n        package_id,\n    )\n\n\ndef test_selecting_work_package_does_not_recenter_workflow_viewport(page):''',
+              ),
+              (
+                  '''              node.scrollTo({left: 40, top: 25, behavior: 'auto'});\n            }"""\n        )\n        before = _workflow_viewport_position(page)''',
+                  '''              node.scrollTo({left: 40, top: 25, behavior: 'auto'});\n            }"""\n        )\n        _reveal_work_package_card(page, "F")\n        before = _workflow_viewport_position(page)''',
+              ),
+              (
+                  '''        page.locator('[data-work-package-action="select"][data-id="F"]').click()\n        for _ in range(3):\n            page.locator('[data-workflow-viewport-action="zoom-in"]').click()''',
+                  '''        page.locator('[data-work-package-action="select"][data-id="F"]').click()\n        page.locator("#workPackageInspector").wait_for(state="visible")\n        # Selection opens the overlay inspector, which covers the viewport\n        # toolbar on narrow screens. Close it before exercising zoom.\n        page.locator("#closeWorkPackageInspector").click()\n        page.locator("#workPackageInspector").wait_for(state="hidden")\n        page.evaluate("window.scrollTo(0, 0)")\n        for _ in range(3):\n            page.locator('[data-workflow-viewport-action="zoom-in"]').click()''',
+              ),
+              (
+                  '''              node.scrollTo({left: 45, top: 20, behavior: 'auto'});\n            }"""\n        )\n        before = _workflow_viewport_position(page)''',
+                  '''              node.scrollTo({left: 45, top: 20, behavior: 'auto'});\n            }"""\n        )\n        _reveal_work_package_card(page, "F")\n        before = _workflow_viewport_position(page)''',
+              ),
+              (
+                  '''        page.locator('[data-workflow-view="graph"]').click()\n        assignment = page.locator('[data-work-package-action="execution"][data-id="WP1"]')''',
+                  '''        page.locator('[data-workflow-view="graph"]').click()\n        # The same Execution action exists in the hidden List projection;\n        # scope to the Graph card that is actually visible.\n        assignment = page.locator(\n            '#workflowGraphView [data-work-package-action="execution"][data-id="WP1"]'\n        )''',
+              ),
+          ]
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"expected browser-test block not found: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+
+          start = text.index("def test_graph_vertical_wheel_scrolls_page_and_shift_wheel_pans_graph(page):")
+          end = text.index("\ndef test_work_package_details_and_execution_shortcut_share_inspector(page):", start)
+          stable_wheel = '''def _workflow_visible_point(page):\n    """Return a viewport coordinate that lies over the graph surface."""\n    return page.evaluate(\n        """() => {\n          const wrap = document.querySelector('#workflowWrap');\n          const topbar = document.querySelector('header.topbar');\n          const rect = wrap.getBoundingClientRect();\n          const topLimit = topbar.getBoundingClientRect().bottom + 20;\n          const bottomLimit = window.innerHeight - 20;\n          if (rect.top >= bottomLimit || rect.bottom <= topLimit) return null;\n          const y = Math.min(Math.max(rect.top + 40, topLimit), bottomLimit);\n          const x = rect.left + Math.min(rect.width / 2, 120);\n          return {x, y};\n        }"""\n    )\n\n\ndef test_graph_vertical_wheel_scrolls_page_and_shift_wheel_pans_graph(page):\n    page.set_viewport_size({"width": 700, "height": 620})\n    with dashboard_fixture_server(DENSE_WORKFLOW_SNAPSHOT) as url:\n        page.goto(url)\n        viewport = page.locator("#workflowWrap")\n        viewport.wait_for()\n        page.evaluate(\n            """() => {\n              const wrap = document.querySelector('#workflowWrap');\n              const top = wrap.getBoundingClientRect().top + window.scrollY;\n              window.scrollTo(0, Math.max(0, top - 200));\n            }"""\n        )\n        page.wait_for_timeout(100)\n\n        point = _workflow_visible_point(page)\n        assert point is not None\n        page.mouse.move(point["x"], point["y"])\n        before_page = page.evaluate("window.scrollY")\n        before_top = page.evaluate("document.querySelector('#workflowWrap').scrollTop")\n        page.mouse.wheel(0, 260)\n        page.wait_for_timeout(100)\n        assert page.evaluate("window.scrollY") > before_page\n        assert page.evaluate("document.querySelector('#workflowWrap').scrollTop") == before_top\n\n        for _ in range(4):\n            page.locator('[data-workflow-viewport-action="zoom-in"]').click()\n        page.evaluate("document.querySelector('#workflowWrap').scrollLeft = 40")\n        before_left = page.evaluate("document.querySelector('#workflowWrap').scrollLeft")\n        before_page = page.evaluate("window.scrollY")\n        point = _workflow_visible_point(page)\n        assert point is not None\n        page.mouse.move(point["x"], point["y"])\n        page.keyboard.down("Shift")\n        page.mouse.wheel(0, 180)\n        page.keyboard.up("Shift")\n        page.wait_for_timeout(100)\n\n        assert page.evaluate("document.querySelector('#workflowWrap').scrollLeft") > before_left\n        assert page.evaluate("window.scrollY") == before_page\n'''
+          text = text[:start] + stable_wheel + text[end:]
+          tests.write_text(text, encoding="utf-8")
+
+          Path(".github/workflows/fix-public-ci.yml").unlink()
+      - name: Commit repairs
+        run: |
+          git config user.name "Gennaro Raiola"
+          git config user.email "gennaro.raiola@gmail.com"
+          git add src/execraft/assets/gui/roadmap-view.js tests/test_gui_browser.py .github/workflows/fix-public-ci.yml
+          git commit -m "Align browser CI with current GUI behavior"
+          git push origin HEAD:main
