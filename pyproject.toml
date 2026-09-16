@@ -39,7 +39,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7", "pytest-asyncio", "setuptools>=61", "wheel>=0.41"]
+test = [
+    "pytest>=7",
+    "pytest-asyncio",
+    "setuptools>=61",
+    "tomli>=2; python_version < '3.11'",
+    "wheel>=0.41",
+]
 browser = ["playwright==1.57.0"]
 openclaw = ["cryptography>=43", "websockets>=14,<17"]
 quality = [
